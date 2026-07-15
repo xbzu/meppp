@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "ci-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.10.10"
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Verify lock file
+        run: uv lock --check
+
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Verify migrations and settings
+        run: |
+          uv run python manage.py makemigrations --check --dry-run
+          uv run python manage.py check
+
+      - name: Run tests with coverage
+        run: |
+          uv run coverage run manage.py test meppp
+          uv run coverage report
+
+      - name: Check production security settings
+        env:
+          MEPPP_ENV: production
+          MEPPP_SECRET_KEY: ci-only-long-secret-key-that-is-never-used-outside-tests-123456789
+          MEPPP_ALLOWED_HOSTS: localhost
+          MEPPP_SECURE: "1"
+          MEPPP_DATA_DIR: /tmp/meppp-ci-data
+        run: uv run python manage.py check --deploy --fail-level WARNING
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Build image
+        env:
+          MEPPP_SECRET_KEY: ci-only-compose-validation-secret
+        run: |
+          docker compose config --quiet
+          docker build --tag meppp:ci .
+
+      - name: Smoke test image
+        env:
+          MEPPP_SECRET_KEY: ci-only-long-secret-key-that-is-never-used-outside-tests-123456789
+        run: |
+          volume_name="meppp-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker volume create "$volume_name"
+          container_id=""
+          cleanup() {
+            if [ -n "$container_id" ]; then
+              docker logs "$container_id" || true
+              docker rm --force "$container_id" || true
+            fi
+            docker volume rm "$volume_name" || true
+          }
+          trap cleanup EXIT
+          test "$(docker run --rm --entrypoint id meppp:ci -u)" != "0"
+          container_id=$(docker run --detach --publish 127.0.0.1:8000:8000 \
+            --env MEPPP_SECRET_KEY \
+            --env MEPPP_ALLOWED_HOSTS=localhost,127.0.0.1 \
+            --env MEPPP_SECURE=0 \
+            --read-only \
+            --tmpfs /tmp \
+            --mount "type=volume,src=$volume_name,dst=/data" \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            meppp:ci)
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8000/health/ready
+          docker exec "$container_id" sh -c \
+            'if touch /app/.write-test 2>/dev/null; then exit 1; fi; touch /data/.write-test /tmp/.write-test; rm /data/.write-test /tmp/.write-test'

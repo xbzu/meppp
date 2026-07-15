@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      MEPPP_SECRET_KEY: "${MEPPP_SECRET_KEY:?Set MEPPP_SECRET_KEY in .env}"
+      MEPPP_ALLOWED_HOSTS: "${MEPPP_ALLOWED_HOSTS:-localhost}"
+      MEPPP_SECURE: "${MEPPP_SECURE:-1}"
+      MEPPP_TRUST_PROXY: "${MEPPP_TRUST_PROXY:-0}"
+    ports:
+      - "127.0.0.1:${MEPPP_PORT:-8000}:8000"
+    volumes:
+      - meppp_data:/data
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'meppp.config.settings'); import django; django.setup(); from django.db import connection; connection.ensure_connection()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  meppp_data:

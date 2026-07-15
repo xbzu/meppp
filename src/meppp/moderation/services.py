@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from meppp.audit.services import record_event
@@ -12,11 +12,13 @@ from .models import (
     ModerationAction,
     ModerationDecision,
     Report,
+    ReportReason,
     ReportStatus,
     SubjectType,
 )
 
 FINAL_STATUSES = frozenset({ReportStatus.RESOLVED, ReportStatus.REJECTED})
+ACTIVE_REPORT_STATUSES = (ReportStatus.OPEN, ReportStatus.TRIAGED)
 
 ACTION_SUBJECTS = {
     ModerationAction.HIDE_ENTRY: SubjectType.ENTRY,
@@ -26,6 +28,75 @@ ACTION_SUBJECTS = {
     ModerationAction.SUSPEND_USER: SubjectType.USER,
     ModerationAction.RESTORE_USER: SubjectType.USER,
 }
+
+
+def _visible_report_target(*, subject_type: str, subject_public_id):
+    if subject_type == SubjectType.USER:
+        return get_user_model().objects.filter(public_id=subject_public_id, is_active=True).first()
+    if subject_type == SubjectType.ENTRY:
+        return Entry.objects.filter(
+            public_id=subject_public_id,
+            state=ContentState.PUBLISHED,
+            author__is_active=True,
+        ).first()
+    if subject_type == SubjectType.COMMENT:
+        return (
+            Comment.objects.select_related("entry")
+            .filter(
+                public_id=subject_public_id,
+                state=ContentState.PUBLISHED,
+                author__is_active=True,
+                entry__state=ContentState.PUBLISHED,
+                entry__author__is_active=True,
+            )
+            .first()
+        )
+    return None
+
+
+def submit_report(*, reporter, subject_type: str, subject_public_id, reason: str, details: str):
+    if not reporter or not reporter.is_authenticated or not reporter.is_active:
+        raise ValidationError("需要有效的成员账号")
+    if reason not in ReportReason.values:
+        raise ValidationError("举报原因无效")
+    details = details.strip()
+    if reason == ReportReason.OTHER and not details:
+        raise ValidationError("选择其他原因时请补充说明")
+    if len(details) > 1_000:
+        raise ValidationError("补充说明不能超过 1000 个字符")
+
+    target = _visible_report_target(
+        subject_type=subject_type,
+        subject_public_id=subject_public_id,
+    )
+    if target is None:
+        raise ValidationError("无法提交此举报")
+    target_owner_id = target.pk if subject_type == SubjectType.USER else target.author_id
+    if target_owner_id == reporter.pk:
+        raise ValidationError("不能举报自己的账号或内容")
+
+    try:
+        with transaction.atomic():
+            report = Report(
+                reporter=reporter,
+                subject_type=subject_type,
+                subject_public_id=subject_public_id,
+                reason=reason,
+                details=details,
+            )
+            report.full_clean(validate_constraints=False)
+            report.save(force_insert=True)
+        return report, True
+    except IntegrityError:
+        existing = Report.objects.filter(
+            reporter=reporter,
+            subject_type=subject_type,
+            subject_public_id=subject_public_id,
+            status__in=ACTIVE_REPORT_STATUSES,
+        ).first()
+        if existing is None:
+            raise
+        return existing, False
 
 
 def _require_moderator(actor) -> None:

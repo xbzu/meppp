@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from ipaddress import ip_network
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -22,7 +23,15 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
 
 
+def env_networks(name: str) -> tuple:
+    try:
+        return tuple(ip_network(item, strict=False) for item in env_list(name))
+    except ValueError as error:
+        raise ImproperlyConfigured(f"{name} must contain valid IP addresses or CIDRs") from error
+
+
 BASE_DIR = Path(__file__).resolve().parents[3]
+PACKAGE_DIR = Path(__file__).resolve().parents[1]
 ENVIRONMENT = os.getenv("MEPPP_ENV", "development").strip().lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
 DEBUG = env_bool("MEPPP_DEBUG", not IS_PRODUCTION)
@@ -58,6 +67,7 @@ INSTALLED_APPS = [
     "meppp.notifications.apps.NotificationsConfig",
     "meppp.audit.apps.AuditConfig",
     "meppp.moderation.apps.ModerationConfig",
+    "meppp.web.apps.WebConfig",
 ]
 
 MIDDLEWARE = [
@@ -66,6 +76,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "meppp.web.middleware.PublicSecurityHeadersMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -79,13 +90,14 @@ ASGI_APPLICATION = "meppp.config.asgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [BASE_DIR / "templates", PACKAGE_DIR / "web" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "meppp.web.context_processors.site_context",
             ],
         },
     },
@@ -114,7 +126,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "zh-hans"
-TIME_ZONE = "UTC"
+TIME_ZONE = os.getenv("MEPPP_TIME_ZONE", "Asia/Shanghai")
 USE_I18N = True
 USE_TZ = True
 
@@ -134,12 +146,21 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-LOGIN_URL = "/admin/login/"
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "meppp-single-process",
+    }
+}
 
 SECURE_MODE = env_bool("MEPPP_SECURE", IS_PRODUCTION)
 SESSION_COOKIE_SECURE = SECURE_MODE
@@ -148,7 +169,11 @@ SECURE_SSL_REDIRECT = SECURE_MODE
 SECURE_HSTS_SECONDS = 31_536_000 if SECURE_MODE else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_MODE
 SECURE_HSTS_PRELOAD = SECURE_MODE
-if env_bool("MEPPP_TRUST_PROXY", False):
+TRUST_PROXY = env_bool("MEPPP_TRUST_PROXY", False)
+TRUSTED_PROXY_NETWORKS = env_networks("MEPPP_TRUSTED_PROXY_IPS")
+if TRUST_PROXY and not TRUSTED_PROXY_NETWORKS:
+    raise ImproperlyConfigured("MEPPP_TRUSTED_PROXY_IPS is required when proxy trust is enabled")
+if TRUST_PROXY:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

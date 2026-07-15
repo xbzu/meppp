@@ -3,8 +3,11 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import RequestFactory, TestCase
 
+from meppp.configuration.models import RegistrationMode, SiteConfiguration
+
 from .admin import MepppUserAdmin
 from .models import Profile, User
+from .services import register_member
 
 
 class UserModelTests(TestCase):
@@ -37,6 +40,16 @@ class UserModelTests(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             User.objects.create_user(username="alice")
 
+    def test_username_authentication_is_case_insensitive(self):
+        User.objects.create_user(username="QuietMember", password="a-long-test-password")
+
+        authenticated = self.client.login(
+            username="quietmember",
+            password="a-long-test-password",
+        )
+
+        self.assertTrue(authenticated)
+
     def test_users_are_deactivated_instead_of_deleted(self):
         user = User.objects.create_user(username="member")
 
@@ -62,3 +75,35 @@ class UserModelTests(TestCase):
         profile = Profile.objects.create(user=user)
 
         self.assertEqual(str(profile), "member")
+
+
+class RegistrationServiceTests(TestCase):
+    def test_closed_and_invite_modes_are_enforced_in_the_service(self):
+        configuration = SiteConfiguration.objects.create(
+            pk=1,
+            registration_mode=RegistrationMode.CLOSED,
+        )
+
+        for mode in (RegistrationMode.CLOSED, RegistrationMode.INVITE):
+            with self.subTest(mode=mode):
+                configuration.registration_mode = mode
+                configuration.save()
+                with self.assertRaisesMessage(ValidationError, "未开放注册"):
+                    register_member(
+                        username=f"member-{mode}",
+                        email="",
+                        password="a-long-test-password",
+                    )
+
+        self.assertFalse(User.objects.exists())
+
+    def test_open_mode_creates_user_and_profile_atomically(self):
+        SiteConfiguration.objects.create(pk=1, registration_mode=RegistrationMode.OPEN)
+
+        user = register_member(
+            username="member",
+            email="member@example.test",
+            password="a-long-test-password",
+        )
+
+        self.assertTrue(Profile.objects.filter(user=user).exists())

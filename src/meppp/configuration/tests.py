@@ -1,6 +1,7 @@
 from django.contrib.admin.sites import AdminSite
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
 from meppp.accounts.models import User
 from meppp.audit.models import AuditEvent
@@ -61,6 +62,18 @@ class ConfigurationServiceTests(TestCase):
         request.user = User.objects.create_user(username="staff", is_staff=True)
 
         self.assertFalse(model_admin.has_add_permission(request))
+
+    def test_superuser_can_open_localized_initial_configuration_form(self):
+        self.actor.is_staff = True
+        self.actor.is_superuser = True
+        self.actor.save()
+        self.client.force_login(self.actor)
+
+        response = self.client.get(reverse("admin:configuration_siteconfiguration_add"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "站点名称")
+        self.assertContains(response, "保存后生成")
 
     def test_unknown_setting_is_rejected(self):
         with self.assertRaises(ValidationError):

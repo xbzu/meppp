@@ -57,6 +57,39 @@ jobs:
           MEPPP_DATA_DIR: /tmp/meppp-ci-data
         run: uv run python manage.py check --deploy --fail-level WARNING
 
+  browser:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.10.10"
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Install Chromium
+        run: uv run python -m playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: uv run python manage.py test tests.browser -v 2
+
+      - name: Upload browser evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   container:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -104,5 +137,9 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:8000/health/ready
+          curl --fail --silent --output /tmp/meppp-homepage.html http://127.0.0.1:8000/
+          grep --fixed-strings "COMMUNITY LEDGER · 01" /tmp/meppp-homepage.html
+          curl --fail --silent --output /tmp/meppp-app.css http://127.0.0.1:8000/static/web/css/app.css
+          grep --fixed-strings -- "--paper: #f2f3ed;" /tmp/meppp-app.css
           docker exec "$container_id" sh -c \
             'if touch /app/.write-test 2>/dev/null; then exit 1; fi; touch /data/.write-test /tmp/.write-test; rm /data/.write-test /tmp/.write-test'

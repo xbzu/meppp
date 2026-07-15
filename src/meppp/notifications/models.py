@@ -33,6 +33,8 @@ class Notification(PublicModel):
 
     class Meta:
         ordering = ["-created_at"]
+        verbose_name = "通知"
+        verbose_name_plural = "通知"
         indexes = [
             models.Index(fields=["recipient", "read_at", "-created_at"]),
         ]

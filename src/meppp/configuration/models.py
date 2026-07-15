@@ -90,6 +90,8 @@ class ConfigurationRevision(AppendOnlyPublicModel):
     class Meta:
         base_manager_name = "objects"
         ordering = ["-version"]
+        verbose_name = "配置历史"
+        verbose_name_plural = "配置历史"
 
     def __str__(self) -> str:
         return f"Configuration v{self.version}"

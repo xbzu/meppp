@@ -25,6 +25,7 @@ htmlcov/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+test-results/
 
 # Editors and operating systems
 .DS_Store

@@ -1,11 +1,19 @@
 # Product scope
 
-MEPPP is a lightweight community product. Its first complete milestone is a small, coherent moderation loop rather than a wide feature matrix. This document defines the target MVP; the foundation change implements its data, security, moderation, configuration, and operations boundaries, not the public feed and member interface yet.
+MEPPP is a lightweight community product. Its first complete milestone is a small, coherent moderation loop rather than a wide feature matrix. The current change implements the data, security, moderation, configuration, operations, and text-first public member interface.
+
+## Current UI milestone
+
+- Implemented: public chronological and following feeds, text search, topic filtering, member pages, registration modes, login/logout, text publishing, flat comments, likes, follows, notifications, and bound-target reports.
+- Implemented: post-moderation publishing and a real pending state for pre-moderation.
+- Implemented: responsive desktop/mobile templates, keyboard focus, security headers, CSRF, same-origin redirects, form idempotency, and account/IP rate limits.
+- Deliberately closed: member avatar and attachment uploads. Extension checks are not treated as a safe image pipeline.
+- Still planned for the target MVP: decoded/re-encoded image uploads with dimensions, size limits, alternative text, transactional cleanup, and dedicated abuse tests.
 
 ## MVP loop
 
 1. Visitors can browse a public chronological feed, member pages, topics, and search results.
-2. Members can register, sign in, publish text with up to four images, follow, like, and leave flat comments.
+2. Members can register, sign in, publish text, follow, like, and leave flat comments. Validated image publishing is the next milestone.
 3. Members receive database-backed notifications for follows, likes, comments, moderation, and system events.
 4. Members can report a member, entry, or comment.
 5. Staff can triage reports, hide content, suspend accounts, and restore prior decisions.

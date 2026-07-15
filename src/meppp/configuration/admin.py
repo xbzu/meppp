@@ -1,4 +1,6 @@
+from django import forms
 from django.contrib import admin
+from django.utils import formats, timezone
 
 from meppp.audit.services import record_event
 
@@ -6,9 +8,41 @@ from .models import ConfigurationRevision, SiteConfiguration
 from .services import EDITABLE_FIELDS, update_configuration
 
 
+class SiteConfigurationAdminForm(forms.ModelForm):
+    class Meta:
+        model = SiteConfiguration
+        fields = (
+            "site_name",
+            "tagline",
+            "registration_mode",
+            "post_max_length",
+            "comment_max_length",
+            "max_images_per_post",
+            "upload_max_bytes",
+            "moderation_mode",
+            "comments_enabled",
+        )
+        labels = {
+            "site_name": "站点名称",
+            "tagline": "站点说明",
+            "registration_mode": "注册方式",
+            "post_max_length": "正文最大长度",
+            "comment_max_length": "评论最大长度",
+            "max_images_per_post": "每条内容最多图片数",
+            "upload_max_bytes": "单张图片上限（字节）",
+            "moderation_mode": "审核方式",
+            "comments_enabled": "开放评论",
+        }
+        help_texts = {
+            "max_images_per_post": "图片入口当前保持关闭；此值为后续安全图片流程预留。",
+            "upload_max_bytes": "图片入口当前保持关闭；启用前还会执行解码与像素校验。",
+        }
+
+
 @admin.register(SiteConfiguration)
 class SiteConfigurationAdmin(admin.ModelAdmin):
-    readonly_fields = ("version", "created_at", "updated_at")
+    form = SiteConfigurationAdminForm
+    readonly_fields = ("version_display", "created_at_display", "updated_at_display")
     fieldsets = (
         ("站点", {"fields": ("site_name", "tagline", "registration_mode")}),
         (
@@ -23,8 +57,27 @@ class SiteConfigurationAdmin(admin.ModelAdmin):
             },
         ),
         ("审核与功能", {"fields": ("moderation_mode", "comments_enabled")}),
-        ("版本", {"fields": ("version", "created_at", "updated_at")}),
+        (
+            "版本",
+            {"fields": ("version_display", "created_at_display", "updated_at_display")},
+        ),
     )
+
+    @admin.display(description="版本")
+    def version_display(self, obj):
+        return obj.version if obj is not None else 1
+
+    @admin.display(description="创建时间")
+    def created_at_display(self, obj):
+        if obj is None or not obj.created_at:
+            return "保存后生成"
+        return formats.localize(timezone.localtime(obj.created_at))
+
+    @admin.display(description="更新时间")
+    def updated_at_display(self, obj):
+        if obj is None or not obj.updated_at:
+            return "保存后生成"
+        return formats.localize(timezone.localtime(obj.updated_at))
 
     def has_add_permission(self, request):
         return super().has_add_permission(request) and not SiteConfiguration.objects.exists()

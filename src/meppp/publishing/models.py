@@ -10,6 +10,7 @@ from meppp.common.models import PublicModel
 
 
 class ContentState(models.TextChoices):
+    PENDING = "pending", "待审核"
     PUBLISHED = "published", "已发布"
     HIDDEN = "hidden", "已隐藏"
     DELETED = "deleted", "已删除"
@@ -44,7 +45,9 @@ class Entry(PublicModel):
 
     class Meta:
         base_manager_name = "objects"
-        ordering = ["-created_at"]
+        ordering = ["-created_at", "-pk"]
+        verbose_name = "内容"
+        verbose_name_plural = "内容"
         indexes = [
             models.Index(fields=["state", "-created_at"]),
             models.Index(fields=["author", "-created_at"]),
@@ -83,7 +86,9 @@ class Comment(PublicModel):
 
     class Meta:
         base_manager_name = "objects"
-        ordering = ["created_at"]
+        ordering = ["created_at", "pk"]
+        verbose_name = "评论"
+        verbose_name_plural = "评论"
         indexes = [models.Index(fields=["entry", "state", "created_at"])]
 
     def __str__(self) -> str:
@@ -100,6 +105,8 @@ class Topic(PublicModel):
 
     class Meta:
         ordering = ["slug"]
+        verbose_name = "话题"
+        verbose_name_plural = "话题"
 
     def save(self, *args, **kwargs):
         self.slug = self.slug.strip().lower()
@@ -115,6 +122,8 @@ class EntryTopic(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = "内容话题"
+        verbose_name_plural = "内容话题"
         constraints = [
             models.UniqueConstraint(fields=["entry", "topic"], name="publishing_unique_entry_topic")
         ]
@@ -133,12 +142,15 @@ class Attachment(PublicModel):
     )
     mime_type = models.CharField(max_length=80)
     byte_size = models.PositiveIntegerField()
+    alt_text = models.CharField(max_length=240, blank=True)
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
     position = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ["position", "created_at"]
+        verbose_name = "图片附件"
+        verbose_name_plural = "图片附件"
         constraints = [
             models.UniqueConstraint(
                 fields=["entry", "position"],

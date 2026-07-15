@@ -1,0 +1,42 @@
+{% extends 'web/base.html' %}
+{% block title %}{{ member.profile.display_name|default:member.username }} · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="reading-column profile-page">
+    <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回动态</a>
+    <section class="profile-summary">
+      <div class="profile-avatar" aria-hidden="true">{{ member.profile.display_name|default:member.username|first|upper }}</div>
+      <div class="profile-copy">
+        <p class="eyebrow">MEMBER RECORD</p>
+        <h1>{{ member.profile.display_name|default:member.username }}</h1>
+        <p class="profile-handle">@{{ member.username }}</p>
+        {% if member.profile.bio %}<div class="profile-bio">{{ member.profile.bio|linebreaksbr }}</div>{% else %}<p class="profile-bio muted">这位成员还没有写个人简介。</p>{% endif %}
+        <dl class="profile-stats">
+          <div><dt>内容</dt><dd>{{ member.public_entry_count }}</dd></div>
+          <div><dt>关注者</dt><dd>{{ member.follower_count }}</dd></div>
+          <div><dt>正在关注</dt><dd>{{ member.following_count }}</dd></div>
+          <div><dt>加入</dt><dd>{{ member.date_joined|date:'Y.m' }}</dd></div>
+        </dl>
+      </div>
+      <div class="profile-actions">
+        {% if request.user.is_authenticated and request.user != member %}
+          <form method="post" action="{% url 'web:member-follow' member.public_id %}">
+            {% csrf_token %}
+            <input type="hidden" name="state" value="{% if is_following %}off{% else %}on{% endif %}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button class="{% if is_following %}button-secondary{% else %}button-primary{% endif %}" type="submit" aria-pressed="{% if is_following %}true{% else %}false{% endif %}">{% if is_following %}已关注 · 取消{% else %}关注{% endif %}</button>
+          </form>
+          <a class="quiet-action" href="{% url 'web:report-member' member.public_id %}?next={{ request.get_full_path|urlencode }}">举报成员</a>
+        {% elif not request.user.is_authenticated %}
+          <a class="button-secondary" href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">登录后关注</a>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="member-notes" aria-labelledby="member-notes-title">
+      <div class="feed-heading"><div><p class="section-index">PUBLIC NOTES</p><h2 id="member-notes-title">公开内容</h2></div></div>
+      {% if page.object_list %}<div class="entry-list">{% for entry in page.object_list %}{% include 'web/_entry_card.html' with entry=entry request=request %}{% endfor %}</div>
+      {% else %}<div class="empty-state empty-state-compact"><p>这位成员还没有公开内容。</p></div>{% endif %}
+      {% include 'web/_pagination.html' with page=page only %}
+    </section>
+  </div>
+{% endblock %}

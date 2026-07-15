@@ -1,0 +1,73 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f2f3ed">
+    <meta name="description" content="{{ site_config.tagline|default:'一个安静、清晰、由成员共同维护的小型社区。' }}">
+    <title>{% block title %}{{ site_config.site_name }}{% endblock %}</title>
+    <link rel="icon" href="{% static 'web/img/mark.svg' %}" type="image/svg+xml">
+    <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+    <script src="{% static 'web/js/app.js' %}" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+    <div class="page-shell">
+      <header class="masthead">
+        <div class="masthead-inner">
+          <a class="brand" href="{% url 'web:home' %}" aria-label="{{ site_config.site_name }} 首页">
+            <span class="brand-mark" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </span>
+            <span class="brand-copy">
+              <strong>{{ site_config.site_name }}</strong>
+              <small>COMMUNITY LEDGER · 01</small>
+            </span>
+          </a>
+
+          <form class="masthead-search" action="{% url 'web:home' %}" method="get" role="search">
+            <label class="sr-only" for="global-search">搜索社区</label>
+            <input id="global-search" name="q" type="search" value="{{ query|default:'' }}" placeholder="搜索内容或成员" maxlength="80">
+            <button type="submit">搜索</button>
+          </form>
+
+          <nav class="primary-nav" aria-label="主要导航">
+            <a href="{% url 'web:home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}>动态</a>
+            {% if request.user.is_authenticated %}
+              <a href="{% url 'web:entry-create' %}"{% if request.resolver_match.url_name == 'entry-create' %} aria-current="page"{% endif %}>写一条</a>
+              <a class="notification-link" href="{% url 'web:notifications' %}"{% if request.resolver_match.url_name == 'notifications' %} aria-current="page"{% endif %}>
+                通知
+                {% if unread_notification_count %}<span class="notification-count" aria-label="{{ unread_notification_count }} 条未读">{{ unread_notification_count }}</span>{% endif %}
+              </a>
+              <a href="{% url 'web:member-profile' request.user.public_id %}">{{ request.user.username }}</a>
+              {% if request.user.is_staff %}<a href="{% url 'admin:index' %}">管理</a>{% endif %}
+              <form class="nav-form" method="post" action="{% url 'web:logout' %}">
+                {% csrf_token %}
+                <button type="submit">退出</button>
+              </form>
+            {% else %}
+              <a href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">登录</a>
+              {% if site_config.registration_mode == 'open' %}<a class="nav-join" href="{% url 'web:register' %}">加入</a>{% endif %}
+            {% endif %}
+          </nav>
+        </div>
+      </header>
+
+      {% if messages %}
+        <div class="message-stack" aria-live="polite" aria-atomic="true">
+          {% for message in messages %}<div class="message message-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <main id="main-content" tabindex="-1">
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="site-footer">
+        <p><strong>{{ site_config.site_name }}</strong> · 清晰表达，友善讨论。</p>
+        <p>独立实现的轻量社区 · <a href="{% url 'web:home' %}">返回动态</a></p>
+      </footer>
+    </div>
+  </body>
+</html>

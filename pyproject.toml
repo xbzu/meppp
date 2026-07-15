@@ -15,6 +15,7 @@ dependencies = [
 [dependency-groups]
 dev = [
   "coverage[toml]>=7.10,<8",
+  "playwright>=1.61,<1.62",
   "ruff>=0.12,<1",
 ]
 
@@ -24,6 +25,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"meppp.web" = ["templates/**/*.html", "static/**/*"]
 
 [tool.ruff]
 target-version = "py314"

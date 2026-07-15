@@ -18,6 +18,8 @@ class Follow(PublicModel):
     )
 
     class Meta:
+        verbose_name = "关注关系"
+        verbose_name_plural = "关注关系"
         constraints = [
             models.UniqueConstraint(fields=["follower", "followed"], name="social_unique_follow"),
             models.CheckConstraint(
@@ -43,6 +45,8 @@ class EntryLike(PublicModel):
     entry = models.ForeignKey(Entry, on_delete=models.CASCADE, related_name="likes")
 
     class Meta:
+        verbose_name = "点赞"
+        verbose_name_plural = "点赞"
         constraints = [
             models.UniqueConstraint(fields=["actor", "entry"], name="social_unique_entry_like")
         ]

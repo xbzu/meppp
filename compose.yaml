@@ -7,6 +7,7 @@ services:
       MEPPP_ALLOWED_HOSTS: "${MEPPP_ALLOWED_HOSTS:-localhost}"
       MEPPP_SECURE: "${MEPPP_SECURE:-1}"
       MEPPP_TRUST_PROXY: "${MEPPP_TRUST_PROXY:-0}"
+      MEPPP_TRUSTED_PROXY_IPS: "${MEPPP_TRUSTED_PROXY_IPS:-}"
     ports:
       - "127.0.0.1:${MEPPP_PORT:-8000}:8000"
     volumes:

@@ -115,6 +115,8 @@ class Report(PublicModel):
     class Meta:
         base_manager_name = "objects"
         ordering = ["created_at"]
+        verbose_name = "举报"
+        verbose_name_plural = "举报"
         constraints = [
             models.UniqueConstraint(
                 fields=["reporter", "subject_type", "subject_public_id"],
@@ -172,6 +174,8 @@ class ModerationDecision(AppendOnlyPublicModel):
     class Meta:
         base_manager_name = "objects"
         ordering = ["created_at"]
+        verbose_name = "审核决定"
+        verbose_name_plural = "审核决定"
 
     def __str__(self) -> str:
         return f"{self.report_id}:{self.action}"

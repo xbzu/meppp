@@ -19,7 +19,7 @@ python -c "import secrets; print(secrets.token_urlsafe(64))"
 
 The placeholder in `.env.example` is intentionally rejected at startup.
 
-Production defaults require HTTPS. The Compose port binds to `127.0.0.1` so a trusted local reverse proxy can terminate TLS; set `MEPPP_TRUST_PROXY=1` only when that proxy overwrites `X-Forwarded-Proto`. Plain HTTP is reserved for disposable tests with an explicit `MEPPP_SECURE=0` override.
+Production defaults require HTTPS. The Compose port binds to `127.0.0.1` so a trusted local reverse proxy can terminate TLS. Set `MEPPP_TRUST_PROXY=1` only when that proxy overwrites both `X-Forwarded-Proto` and `X-Real-IP`, then list the proxy's directly observed IP or CIDR in `MEPPP_TRUSTED_PROXY_IPS`. The application accepts a single canonical address in `X-Real-IP` only from those trusted networks; forwarded headers from public clients are ignored. Plain HTTP is reserved for disposable tests with an explicit `MEPPP_SECURE=0` override.
 
 ## SQLite limits
 

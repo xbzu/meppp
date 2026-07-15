@@ -1,0 +1,32 @@
+{% extends 'web/base.html' %}
+{% block title %}通知 · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="reading-column notifications-page">
+    <div class="page-heading">
+      <div><p class="eyebrow">INBOX</p><h1>通知</h1><p>只保留与你直接相关的社区变化。</p></div>
+      {% if unread_notification_count %}<form method="post" action="{% url 'web:notifications-read' %}">{% csrf_token %}<button class="button-secondary" type="submit">全部标为已读</button></form>{% endif %}
+    </div>
+    {% if notifications %}
+      <ol class="notification-list">
+        {% for notification in notifications %}
+          <li class="notification-item{% if not notification.read_at %} is-unread{% endif %}">
+            <span class="notification-dot" aria-hidden="true"></span>
+            <div>
+              <p>
+                {% if notification.actor %}<strong>@{{ notification.actor.username }}</strong>{% else %}<strong>系统</strong>{% endif %}
+                {% if notification.kind == 'follow' %}关注了你
+                {% elif notification.kind == 'like' %}赞了你的内容
+                {% elif notification.kind == 'comment' %}评论了你的内容
+                {% elif notification.kind == 'moderation' %}更新了一项审核结果
+                {% else %}发来一条通知{% endif %}
+              </p>
+              <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at|timesince }}前</time>
+            </div>
+            {% if notification.target_type == 'entry' and notification.target_public_id %}<a href="{% url 'web:entry-detail' notification.target_public_id %}" aria-label="打开相关内容">查看 <span aria-hidden="true">→</span></a>
+            {% elif notification.target_type == 'user' and notification.target_public_id %}<a href="{% url 'web:member-profile' notification.target_public_id %}" aria-label="打开相关成员">查看 <span aria-hidden="true">→</span></a>{% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}<div class="empty-state"><span aria-hidden="true">○</span><h2>暂时没有通知</h2><p>新的关注、点赞、评论和审核结果会出现在这里。</p></div>{% endif %}
+  </div>
+{% endblock %}

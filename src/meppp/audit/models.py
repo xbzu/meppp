@@ -22,6 +22,8 @@ class AuditEvent(AppendOnlyPublicModel):
     class Meta:
         base_manager_name = "objects"
         ordering = ["-created_at"]
+        verbose_name = "审计记录"
+        verbose_name_plural = "审计记录"
         indexes = [
             models.Index(fields=["action", "-created_at"]),
             models.Index(fields=["target_type", "target_public_id"]),

@@ -9,6 +9,8 @@ from django.db.models.functions import Lower
 
 from meppp.common.models import PublicModel
 
+from .normalization import normalize_username
+
 
 class UserQuerySet(models.QuerySet):
     def delete(self):
@@ -19,7 +21,9 @@ class UserQuerySet(models.QuerySet):
 
 
 class UserManager(DjangoUserManager.from_queryset(UserQuerySet)):
-    pass
+    def get_by_natural_key(self, username):
+        normalized = normalize_username(username)
+        return self.get(username__iexact=normalized)
 
 
 class User(AbstractUser):
@@ -30,6 +34,8 @@ class User(AbstractUser):
 
     class Meta(AbstractUser.Meta):
         base_manager_name = "objects"
+        verbose_name = "成员"
+        verbose_name_plural = "成员"
         constraints = [
             models.UniqueConstraint(
                 Lower("email"),
@@ -40,6 +46,7 @@ class User(AbstractUser):
         ]
 
     def save(self, *args, **kwargs):
+        self.username = normalize_username(self.username)
         self.email = self.email.strip().lower()
         super().save(*args, **kwargs)
 
@@ -59,6 +66,8 @@ class Profile(PublicModel):
 
     class Meta:
         ordering = ["user_id"]
+        verbose_name = "成员资料"
+        verbose_name_plural = "成员资料"
 
     def __str__(self) -> str:
         return self.display_name or self.user.get_username()

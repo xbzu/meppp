@@ -12,6 +12,7 @@ class PublishingModelTests(TestCase):
 
     def test_public_queryset_excludes_hidden_and_deleted_entries(self):
         visible = Entry.objects.create(author=self.author, body="visible")
+        Entry.objects.create(author=self.author, body="pending", state=ContentState.PENDING)
         Entry.objects.create(author=self.author, body="hidden", state=ContentState.HIDDEN)
         Entry.objects.create(author=self.author, body="deleted", state=ContentState.DELETED)
 

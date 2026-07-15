@@ -1,0 +1,52 @@
+<article class="entry-card{% if is_detail %} entry-card-detail{% endif %}" aria-labelledby="entry-author-{{ entry.public_id }} entry-time-{{ entry.public_id }}">
+  <header class="identity-line">
+    <a class="avatar" href="{% url 'web:member-profile' entry.author.public_id %}" aria-hidden="true" tabindex="-1">{{ entry.author.profile.display_name|default:entry.author.username|first|upper }}</a>
+    <div>
+      <a class="identity-name" id="entry-author-{{ entry.public_id }}" href="{% url 'web:member-profile' entry.author.public_id %}">
+        {{ entry.author.profile.display_name|default:entry.author.username }}
+      </a>
+      <span class="identity-handle">@{{ entry.author.username }}</span>
+    </div>
+    <a class="entry-time" id="entry-time-{{ entry.public_id }}" href="{% url 'web:entry-detail' entry.public_id %}">
+      <time datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|timesince }}前</time>
+    </a>
+  </header>
+
+  <div class="entry-body">
+    {% if is_detail %}{{ entry.body|linebreaksbr }}{% else %}{{ entry.body|truncatechars:420|linebreaksbr }}{% endif %}
+  </div>
+
+  {% if entry.attachments.all %}
+    <div class="media-grid media-count-{{ entry.attachments.all|length }}">
+      {% for attachment in entry.attachments.all %}
+        <img src="{{ attachment.file.url }}" alt="{{ attachment.alt_text|default:'内容配图' }}" loading="lazy" width="{{ attachment.width|default:960 }}" height="{{ attachment.height|default:720 }}">
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if entry.topics.all %}
+    <div class="topic-row" aria-label="话题">
+      {% for topic in entry.topics.all %}<a href="{% url 'web:home' %}?topic={{ topic.slug|urlencode }}">#{{ topic.label }}</a>{% endfor %}
+    </div>
+  {% endif %}
+
+  <footer class="interaction-bar">
+    {% if request.user.is_authenticated %}
+      <form method="post" action="{% url 'web:entry-like' entry.public_id %}" class="inline-action">
+        {% csrf_token %}
+        <input type="hidden" name="state" value="{% if entry.viewer_liked %}off{% else %}on{% endif %}">
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button class="interaction-button{% if entry.viewer_liked %} is-active{% endif %}" type="submit" aria-pressed="{% if entry.viewer_liked %}true{% else %}false{% endif %}">
+          <span aria-hidden="true">♥</span> 赞 <strong>{{ entry.like_count }}</strong>
+        </button>
+      </form>
+    {% else %}
+      <a class="interaction-button" href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}"><span aria-hidden="true">♡</span> 赞 <strong>{{ entry.like_count }}</strong></a>
+    {% endif %}
+    <a class="interaction-button" href="{% url 'web:entry-detail' entry.public_id %}#comments"><span aria-hidden="true">↳</span> 评论 <strong>{{ entry.comment_count }}</strong></a>
+    <a class="interaction-button entry-permalink" href="{% url 'web:entry-detail' entry.public_id %}">阅读全文 <span aria-hidden="true">→</span></a>
+    {% if request.user.is_authenticated and request.user != entry.author %}
+      <a class="quiet-action" href="{% url 'web:report-entry' entry.public_id %}?next={{ request.get_full_path|urlencode }}">举报</a>
+    {% endif %}
+  </footer>
+</article>

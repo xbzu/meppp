@@ -1,6 +1,7 @@
+{% load static %}
 <div class="sidebar-inner">
   <a class="sidebar-brand" href="{% url 'web:home' %}" aria-label="{{ site_config.site_name }} 首页">
-    <span class="sidebar-brand-mark" aria-hidden="true">M</span>
+    <img class="sidebar-brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="42" height="42">
     <span class="sr-only">{{ site_config.site_name }}</span>
   </a>
 

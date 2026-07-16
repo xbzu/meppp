@@ -1,5 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
-  <title id="title">MEPPP</title>
-  <path d="M12 7h40a7 7 0 0 1 7 7v30a7 7 0 0 1-7 7H31L18 59v-8h-6a7 7 0 0 1-7-7V14a7 7 0 0 1 7-7Z" fill="#0284c7"/>
-  <path d="M17 38V20h5.5l9.5 10.2L41.5 20H47v18h-6V29l-9 9-9-9v9h-6Z" fill="#fff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">meppp</title>
+  <desc id="description">蓝色渐变圆形中的白色 meppp 字标</desc>
+  <defs>
+    <radialGradient id="meppp-blue" cx="47%" cy="48%" r="68%">
+      <stop offset="0" stop-color="#20c8ef"/>
+      <stop offset="0.42" stop-color="#079bd5"/>
+      <stop offset="0.72" stop-color="#087fc2"/>
+      <stop offset="1" stop-color="#285d96"/>
+    </radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="62" fill="url(#meppp-blue)"/>
+  <text x="64" y="71" fill="#fff" font-family="Arial Rounded MT Bold, Avenir Next, Arial, sans-serif" font-size="27" font-weight="800" letter-spacing="-1.4" text-anchor="middle" transform="rotate(-11 64 64)">meppp</text>
 </svg>

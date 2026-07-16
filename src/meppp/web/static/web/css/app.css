@@ -1056,6 +1056,13 @@ textarea.field-control {
   font-size: 17px;
 }
 
+.composer-lead {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .field-control:hover {
   border-color: #94a3b8;
 }
@@ -1189,7 +1196,8 @@ textarea.field-control {
   font-weight: 650;
 }
 
-.image-composer {
+.image-composer,
+.video-composer {
   min-width: 0;
   margin: 0;
   padding: 14px 0;
@@ -1197,7 +1205,8 @@ textarea.field-control {
   border-bottom: 1px solid var(--line);
 }
 
-.image-picker {
+.image-picker,
+.video-picker {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1213,17 +1222,115 @@ textarea.field-control {
 }
 
 .image-picker span,
-.image-status {
+.image-status,
+.video-picker span,
+.video-status {
   color: var(--muted);
   font-size: 12px;
 }
 
-.image-status {
+.image-status,
+.video-status {
   margin: 7px 0 0;
 }
 
-.image-status.has-error {
+.image-status.has-error,
+.video-status.has-error {
   color: var(--danger);
+}
+
+.video-composer > legend {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.video-preview {
+  position: relative;
+  margin-top: 10px;
+  overflow: hidden;
+  background: #0f172a;
+  border-radius: 8px;
+}
+
+.video-preview[hidden] {
+  display: none;
+}
+
+.video-preview video {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.video-preview .button-secondary {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.entry-video {
+  margin-top: 12px;
+  overflow: hidden;
+  background: #0f172a;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.entry-video video {
+  display: block;
+  width: 100%;
+  max-height: 620px;
+  object-fit: contain;
+}
+
+.external-reference {
+  margin-top: 12px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+
+.external-reference-copy {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+}
+
+.external-reference-copy strong,
+.external-reference-copy p,
+.external-reference-copy span {
+  margin: 0;
+}
+
+.external-provider,
+.external-author {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.external-reference-copy a {
+  width: fit-content;
+  color: var(--primary-hover);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.youtube-embed {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #0f172a;
+}
+
+.youtube-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 .image-preview-list {
@@ -2251,6 +2358,47 @@ textarea.field-control {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+.registration-trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.recovery-code-card {
+  gap: 14px;
+}
+
+.recovery-code-value {
+  width: 100%;
+  border: 1px solid var(--focus);
+  border-radius: 10px;
+  background: var(--primary-faint);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 12px;
+  text-align: center;
+}
+
+.account-safety-card {
+  margin-top: 28px;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+
+.account-safety-card h2 {
+  margin: 0 0 8px;
+  font-size: 19px;
+}
+
+.account-safety-card > p {
+  color: var(--muted);
+  margin: 0 0 16px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -38,6 +38,10 @@ if [ -n "$(find "${destination}/media" -type l -print -quit)" ]; then
     echo "remote backup media contains a symbolic link" >&2
     exit 1
 fi
+if [ -n "$(find "${destination}/media" -type f ! \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)" ]; then
+    echo "remote backup media contains an unexpected file" >&2
+    exit 1
+fi
 
 python3 -c '
 import re
@@ -118,7 +122,7 @@ for line in media_manifest.read_text(encoding="ascii").splitlines():
     if len(parts) != 2 or re.fullmatch(r"[0-9a-f]{64}", parts[0]) is None:
         raise SystemExit("invalid media manifest line")
     relative = PurePosixPath(parts[1])
-    if relative.is_absolute() or ".." in relative.parts or relative.parts[:2] != ("media", "entries") or relative.suffix != ".webp":
+    if relative.is_absolute() or ".." in relative.parts or relative.parts[:2] != ("media", "entries") or relative.suffix not in {".webp", ".mp4", ".webm"}:
         raise SystemExit("unsafe media manifest path")
     media_path = destination.joinpath(*relative.parts)
     if not media_path.is_file() or media_path.is_symlink():

@@ -118,14 +118,14 @@ export RSYNC_RSH
     --exclude='*' \
     "${source_remote}:/backups/sqlite/" "$incoming/"
 /usr/bin/rsync -rtp --timeout=120 \
-    --include='*/' --include='*.webp' --exclude='*' \
+    --include='*/' --include='*.webp' --include='*.mp4' --include='*.webm' --exclude='*' \
     "${source_remote}:/media/" "$incoming/media/"
 
 if [ -n "$(find "$incoming/media" -type l -print -quit)" ]; then
     echo "refusing backup result: symbolic link found" >&2
     exit 1
 fi
-if [ -n "$(find "$incoming/media" -type f ! -name '*.webp' -print -quit)" ]; then
+if [ -n "$(find "$incoming/media" -type f ! \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)" ]; then
     echo "refusing backup result: unexpected media file found" >&2
     exit 1
 fi
@@ -204,7 +204,7 @@ for line in manifest.read_text(encoding="ascii").splitlines():
     if len(parts) != 2 or re.fullmatch(r"[0-9a-f]{64}", parts[0]) is None:
         raise SystemExit("invalid media manifest line")
     relative = PurePosixPath(parts[1])
-    if relative.is_absolute() or ".." in relative.parts or relative.parts[:2] != ("media", "entries") or relative.suffix != ".webp":
+    if relative.is_absolute() or ".." in relative.parts or relative.parts[:2] != ("media", "entries") or relative.suffix not in {".webp", ".mp4", ".webm"}:
         raise SystemExit("unsafe media manifest path")
     candidate = root.joinpath(*relative.parts)
     if not candidate.is_file() or candidate.is_symlink():
@@ -216,7 +216,7 @@ if [ -s "${incoming}/${media_manifest}" ]; then
         sha256sum --check "$media_manifest"
     )
 else
-    test -z "$(find "$incoming/media" -type f -name '*.webp' -print -quit)"
+    test -z "$(find "$incoming/media" -type f \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)"
 fi
 
 now_epoch=$(date +%s)
@@ -231,7 +231,7 @@ if [ -n "$(find "$destination/media" -type l -print -quit)" ]; then
     echo "refusing backup: destination media contains a symbolic link" >&2
     exit 1
 fi
-if [ -n "$(find "$destination/media" -type f ! -name '*.webp' -print -quit)" ]; then
+if [ -n "$(find "$destination/media" -type f ! \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)" ]; then
     echo "refusing backup: destination media contains an unexpected file" >&2
     exit 1
 fi
@@ -262,7 +262,7 @@ if [ -s "${final_snapshot_dir}/${media_manifest}" ]; then
         sha256sum --check "snapshots/${snapshot_id}/${media_manifest}"
     )
 else
-    test -z "$(find "$destination/media" -type f -name '*.webp' -print -quit)"
+    test -z "$(find "$destination/media" -type f \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)"
 fi
 sync -f "$destination"
 

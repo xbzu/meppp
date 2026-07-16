@@ -8,6 +8,7 @@
     </header>
     <section class="form-surface" aria-labelledby="composer-title">
       <form method="post" enctype="multipart/form-data" class="stacked-form composer-form" novalidate>
+        <p class="composer-lead">可以写文字、传图片、传一个短视频，或粘贴 X / YouTube 链接生成带署名的引用卡片。</p>
         {% csrf_token %}
         {% include 'web/_form_fields.html' with form=form only %}
         <div class="composer-meta">

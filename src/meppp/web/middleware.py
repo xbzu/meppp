@@ -27,12 +27,16 @@ class PublicSecurityHeadersMiddleware:
                 "Content-Security-Policy",
                 "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; "
                 "script-src 'self'; font-src 'self'; connect-src 'self'; "
-                "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+                "frame-src https://www.youtube-nocookie.com; object-src 'none'; "
+                "base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
             )
 
-        is_private_path = request.path in {"/login/", "/join/"} or request.path.startswith(
-            "/notifications/"
-        )
+        is_private_path = request.path in {
+            "/login/",
+            "/join/",
+            "/recover/",
+            "/recovery-code/",
+        } or request.path.startswith("/notifications/")
         if getattr(request, "user", None) is not None and (
             request.user.is_authenticated or is_private_path
         ):

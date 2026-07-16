@@ -5,6 +5,7 @@ import re
 from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.utils import timezone
@@ -399,7 +400,11 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_label("我愿意遵守社区公约").check()
         self.page.get_by_role("button", name="加入社区").click()
         self.page.wait_for_load_state("networkidle")
-        expect(self.page.get_by_text("欢迎加入", exact=False)).to_be_visible()
+        expect(self.page.get_by_role("heading", name="现在保存账号恢复码")).to_be_visible()
+        self.assertGreater(len(self.page.locator("#recovery-code-value").input_value()), 20)
+        self.page.get_by_role("button", name="我已经安全保存").click()
+        self.page.wait_for_load_state("networkidle")
+        expect(self.page.get_by_text("恢复码已确认保存", exact=False)).to_be_visible()
 
         self.page.get_by_role("link", name="写一条").click()
         self.page.get_by_label("正文").fill("邀请制审核闭环：这条内容先进入待审队列。")
@@ -524,11 +529,37 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_role("button", name="加入社区").click()
         self.page.wait_for_load_state("networkidle")
 
-        expect(self.page.get_by_text("欢迎加入", exact=False)).to_be_visible()
+        expect(self.page.get_by_role("heading", name="现在保存账号恢复码")).to_be_visible()
+        expect(self.page.locator("#recovery-code-value")).not_to_have_value("")
+        self.page.get_by_role("button", name="我已经安全保存").click()
+        self.page.wait_for_load_state("networkidle")
+        expect(self.page.get_by_text("恢复码已确认保存", exact=False)).to_be_visible()
         menu = self.page.get_by_label("打开导航")
         expect(menu).to_be_visible()
         menu.click()
         expect(self.page.get_by_role("link", name=re.compile("通知"))).to_be_visible()
         expect(self.page.locator("#mobile-discovery")).to_be_visible()
         expect(self.page.locator("#mobile-search")).to_be_visible()
+        self.assert_browser_clean()
+
+    def test_member_can_import_an_attributed_x_reference_without_remote_media_download(self):
+        self.login("lin")
+        self.page.get_by_role("link", name="写一条").click()
+        self.page.wait_for_load_state("networkidle")
+        self.page.get_by_label("导入 X / YouTube").fill("https://x.com/i/status/20")
+        with patch(
+            "meppp.web.views.refresh_external_reference",
+            side_effect=lambda reference: reference,
+        ):
+            self.page.get_by_role("button", name="发布内容").click()
+            self.page.wait_for_load_state("networkidle")
+
+        expect(self.page).to_have_url(re.compile(r"/entry/[0-9a-f-]+/"))
+        expect(self.page.get_by_text("分享了一条 X 动态")).to_be_visible()
+        source_link = self.page.get_by_role("link", name=re.compile("在 X 查看原文"))
+        expect(source_link).to_have_attribute("href", "https://x.com/i/status/20")
+        imported = Entry.objects.get(body="分享了一条 X 动态")
+        self.assertEqual(imported.attachments.count(), 0)
+        self.assertFalse(hasattr(imported, "video"))
+        self.assertEqual(imported.external_reference.provider, "x")
         self.assert_browser_clean()

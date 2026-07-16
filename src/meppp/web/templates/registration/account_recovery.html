@@ -1,0 +1,21 @@
+{% extends 'web/base.html' %}
+{% load static %}
+{% block body_class %}auth-page{% endblock %}
+{% block title %}找回账号 · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="auth-layout paopao-auth-layout">
+    <section class="auth-card" aria-labelledby="recovery-title">
+      <a class="auth-brand" href="{% url 'web:home' %}" aria-label="返回 {{ site_config.site_name }} 广场">
+        <img class="brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="36" height="36"><strong>{{ site_config.site_name }}</strong>
+      </a>
+      <h1 id="recovery-title">使用恢复码找回账号</h1>
+      <p class="auth-intro">填写注册邮箱和保存的恢复码。成功后旧恢复码会失效，并显示一个新的。</p>
+      <form method="post" class="stacked-form" novalidate>
+        {% csrf_token %}
+        {% include 'web/_form_fields.html' with form=form only %}
+        <button class="button-primary button-block" type="submit">重设密码</button>
+      </form>
+      <p class="auth-switch"><a href="{% url 'web:login' %}">返回登录</a></p>
+    </section>
+  </div>
+{% endblock %}

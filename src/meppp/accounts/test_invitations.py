@@ -62,14 +62,14 @@ class InvitationServiceTests(TestCase):
 
         first = register_member(
             username="first",
-            email="",
+            email="first@example.test",
             password=PASSWORD,
             invitation_token=plaintext,
         )
         with self.assertRaisesMessage(ValidationError, INVITATION_UNAVAILABLE_MESSAGE):
             register_member(
                 username="second",
-                email="",
+                email="second@example.test",
                 password=PASSWORD,
                 invitation_token=plaintext,
             )
@@ -119,7 +119,7 @@ class InvitationServiceTests(TestCase):
                 with self.assertRaisesMessage(ValidationError, INVITATION_UNAVAILABLE_MESSAGE):
                     register_member(
                         username=username,
-                        email="",
+                        email=f"{username}@example.test",
                         password=PASSWORD,
                         invitation_token=token,
                     )
@@ -139,7 +139,7 @@ class InvitationServiceTests(TestCase):
         SiteConfiguration.objects.filter(pk=1).update(registration_mode=RegistrationMode.OPEN)
         member = register_member(
             username="open-member",
-            email="",
+            email="open-member@example.test",
             password=PASSWORD,
             invitation_token=plaintext,
         )

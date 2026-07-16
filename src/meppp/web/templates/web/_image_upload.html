@@ -2,7 +2,7 @@
   <legend>{{ field.label }}</legend>
   <p id="image-help" class="field-help">
     JPG、PNG 或 WebP；每张不超过 {{ form.maximum_image_bytes|filesizeformat }}；最多 {{ form.maximum_images }} 张。
-    图片只是装饰时，替代文本可以留空。
+    图片只是装饰时，替代文本可以留空；上传即表示你拥有或已获授权使用它。
   </p>
   {{ field }}
   <label class="image-picker" for="{{ field.id_for_label }}" data-image-picker>

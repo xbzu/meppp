@@ -15,11 +15,52 @@
       {% if is_detail %}{{ entry.body|linebreaksbr }}{% else %}{{ entry.body|truncatechars:420|linebreaksbr }}{% endif %}
     </div>
 
+    {% if entry.external_reference %}
+      {% with source=entry.external_reference %}
+        <section class="external-reference external-reference-{{ source.provider }}" aria-label="来自 {{ source.get_provider_display }} 的引用">
+          {% if source.provider == 'youtube' and source.metadata_status == 'ready' %}
+            <div class="youtube-embed">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/{{ source.external_id|urlencode }}"
+                title="{{ source.title|default:'YouTube 视频' }}"
+                loading="lazy"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen></iframe>
+            </div>
+          {% endif %}
+          <div class="external-reference-copy">
+            <span class="external-provider">{{ source.get_provider_display }} · 原始来源</span>
+            {% if source.title %}<strong>{{ source.title }}</strong>{% endif %}
+            {% if source.excerpt %}<p>{{ source.excerpt|truncatechars:600 }}</p>{% endif %}
+            {% if source.author_name %}<span class="external-author">作者：{{ source.author_name }}</span>{% endif %}
+            {% if source.metadata_status == 'unavailable' %}<span class="external-author">原始内容当前不可用，已停止展示预览。</span>{% endif %}
+            <a href="{{ source.canonical_url }}" target="_blank" rel="ugc nofollow noopener noreferrer">在 {{ source.get_provider_display }} 查看原文 <span aria-hidden="true">↗</span></a>
+          </div>
+        </section>
+      {% endwith %}
+    {% endif %}
+
     {% if entry.attachments.all %}
       <div class="media-grid media-count-{{ entry.attachments.all|length }}" role="group" aria-label="{{ entry.attachments.all|length }} 张配图" data-entry-media>
         {% for attachment in entry.attachments.all %}
           <img src="{% url 'web:attachment-file' attachment.public_id %}" alt="{{ attachment.alt_text }}" loading="lazy" decoding="async" width="{{ attachment.width }}" height="{{ attachment.height }}" data-entry-image>
         {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if entry.video %}
+      <div class="entry-video">
+        <video
+          controls
+          playsinline
+          preload="metadata"
+          poster="{% url 'web:video-poster-file' entry.video.public_id %}"
+          width="{{ entry.video.width }}"
+          height="{{ entry.video.height }}">
+          <source src="{% url 'web:video-file' entry.video.public_id %}" type="{{ entry.video.mime_type }}">
+          你的浏览器暂不支持播放这个视频。
+        </video>
       </div>
     {% endif %}
 

@@ -20,6 +20,7 @@
         {% include 'web/_form_fields.html' with form=form only %}
         <button class="button-primary button-block" type="submit">登录</button>
       </form>
+      <p class="auth-switch"><a href="{% url 'web:account-recovery' %}">忘记密码？使用恢复码重设</a></p>
       <p class="auth-switch">还不是成员？<a href="{% url 'web:register' %}">{% if site_config.registration_mode == 'invite' %}使用邀请码注册{% elif site_config.registration_mode == 'open' %}免费创建账号{% else %}查看注册状态{% endif %}</a></p>
     </section>
   </div>

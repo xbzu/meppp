@@ -17,6 +17,7 @@ from .models import (
     PendingComment,
     PendingEntry,
     Topic,
+    VideoAsset,
 )
 from .services import review_comment, review_entry
 
@@ -214,7 +215,10 @@ class PendingEntryAdmin(PendingReviewAdminMixin, admin.ModelAdmin):
 
     def get_queryset(self, request):
         return (
-            super().get_queryset(request).select_related("author").prefetch_related("attachments")
+            super()
+            .get_queryset(request)
+            .select_related("author", "video", "external_reference")
+            .prefetch_related("attachments")
         )
 
     def perform_review(self, *, target, actor, outcome, reason):
@@ -290,3 +294,20 @@ class TopicAdmin(admin.ModelAdmin):
 
 
 admin.site.register(EntryTopic)
+
+
+@admin.register(VideoAsset)
+class VideoAssetAdmin(admin.ModelAdmin):
+    actions = ()
+    list_display = ("public_id", "entry", "mime_type", "byte_size", "duration_ms", "created_at")
+    search_fields = ("public_id", "entry__body", "entry__author__username")
+    readonly_fields = tuple(field.name for field in VideoAsset._meta.concrete_fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

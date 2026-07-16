@@ -1,0 +1,19 @@
+[Unit]
+Description=Refresh due MEPPP X and YouTube source metadata
+Requires=docker.service
+After=docker.service
+ConditionPathExists=/opt/meppp/.env
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/meppp
+ExecStart=/usr/bin/docker compose exec -T app python manage.py refresh_external_references --limit 25
+UMask=0077
+TimeoutStartSec=5m
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full

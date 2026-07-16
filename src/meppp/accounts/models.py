@@ -139,3 +139,22 @@ class Invitation(PublicModel):
 
     def __str__(self) -> str:
         return f"…{self.hint}"
+
+
+class RecoveryCredential(models.Model):
+    """A high-entropy, one-time account recovery code stored only as a password hash."""
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="recovery_credential",
+    )
+    token_digest = models.CharField(max_length=128, editable=False)
+    issued_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "账号恢复凭据"
+        verbose_name_plural = "账号恢复凭据"
+
+    def __str__(self) -> str:
+        return f"recovery:{self.user_id}"

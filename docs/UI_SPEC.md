@@ -55,6 +55,8 @@ go-postery commit `1bcebf66c70bec6d12f0c2be812984cd69b5de57` (MIT, Copyright 202
 - Public pages ship a same-origin CSP, restrictive permissions policy, and referrer policy.
 - Authenticated and authentication responses are private/no-store and vary on cookies.
 - Entry images accept JPG, PNG and WebP input, provide accessible ordered previews, and are served only after server decoding and re-encoding. Empty alternative text is preserved for decorative images rather than replaced with noisy fallback text.
+- Entry videos accept one bounded MP4/WebM input, show a local preview before submission, and use native controls with a generated poster after server validation and remux.
+- X/YouTube imports remain first-party attributed cards. YouTube uses the privacy-enhanced official player only for a verified public source; X never injects provider HTML or scripts.
 - Avatar upload remains closed until replacement, retention and moderation behaviour are separately defined.
 
 ## Independent implementation boundary

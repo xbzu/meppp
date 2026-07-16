@@ -17,6 +17,8 @@ ROLE_PERMISSIONS: Mapping[str, frozenset[PermissionSpec]] = {
             ("publishing", "view_topic"),
             ("publishing", "add_topic"),
             ("publishing", "change_topic"),
+            ("publishing", "view_videoasset"),
+            ("external", "view_externalreference"),
         }
     ),
     "审核": frozenset(
@@ -28,6 +30,8 @@ ROLE_PERMISSIONS: Mapping[str, frozenset[PermissionSpec]] = {
             ("moderation", "view_report"),
             ("moderation", "change_report"),
             ("moderation", "view_moderationdecision"),
+            ("publishing", "view_videoasset"),
+            ("external", "view_externalreference"),
         }
     ),
 }

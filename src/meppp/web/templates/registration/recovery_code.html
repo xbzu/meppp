@@ -1,0 +1,23 @@
+{% extends 'web/base.html' %}
+{% load static %}
+{% block body_class %}auth-page{% endblock %}
+{% block title %}保存恢复码 · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="auth-layout paopao-auth-layout">
+    <section class="auth-card recovery-code-card" aria-labelledby="recovery-code-title">
+      <a class="auth-brand" href="{% url 'web:home' %}" aria-label="返回 {{ site_config.site_name }} 广场">
+        <img class="brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="36" height="36"><strong>{{ site_config.site_name }}</strong>
+      </a>
+      <h1 id="recovery-code-title">现在保存账号恢复码</h1>
+      <p class="auth-intro">它只在这里显示。忘记密码时，需要用户名、注册邮箱和这段恢复码。</p>
+      <label class="sr-only" for="recovery-code-value">账号恢复码</label>
+      <input id="recovery-code-value" class="recovery-code-value" type="text" value="{{ recovery_code }}" readonly data-recovery-code>
+      <button class="button-secondary button-block" type="button" data-copy-recovery-code>复制恢复码</button>
+      <p class="field-help" role="status" aria-live="polite" data-copy-recovery-status>请保存到密码管理器或其他安全位置，不要发给别人。</p>
+      <form method="post">
+        {% csrf_token %}
+        <button class="button-primary button-block" type="submit">我已经安全保存</button>
+      </form>
+    </section>
+  </div>
+{% endblock %}

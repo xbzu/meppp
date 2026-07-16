@@ -7,7 +7,9 @@ This repository does not change a server, DNS record, Cloudflare zone, or aaPane
 ## Runtime safety boundary
 
 - The container uses fixed UID/GID `10001:10001`, drops every Linux capability, enables `no-new-privileges`, and has a read-only root filesystem.
-- Only `/data` and a 96 MiB `noexec` temporary filesystem are writable.
+- Only `/data` and a 192 MiB `noexec` temporary filesystem are writable. Keep
+  `MEPPP_TMPFS_SIZE` at or above 192 MiB so two bounded video-processing requests
+  cannot exhaust the temporary upload, remux, and poster workspace.
 - The service is published only on host loopback, default `127.0.0.1:18080`.
 - CPU, memory, PID, and JSON log rotation limits protect the shared host.
 - A fixed private bridge makes the immediate proxy address deterministic. If its subnet collides, all network values and `MEPPP_TRUSTED_PROXY_IPS` must change together.
@@ -36,8 +38,8 @@ Before first start:
 Start and inspect:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.5 .
-docker image inspect meppp:v0.1.0-rc.5 >/dev/null
+DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.6 .
+docker image inspect meppp:v0.1.0-rc.6 >/dev/null
 docker compose up --detach --no-build --wait app
 docker compose ps
 docker compose logs --tail=100 app
@@ -57,6 +59,18 @@ There is no default administrator credential.
 The container reconciles the code-defined `运营` and `审核` groups after every migration and before serving traffic. It never creates an owner or assigns people to a group. The owner can assign active staff through Django Admin; only the owner can manage member accounts and registration invitations in the first operational milestone. Reconciliation is deliberately corrective: permissions added to these two managed groups outside the code manifest are removed at the next start, while group membership is preserved.
 
 For an invitation-only opening, keep registration closed during the private smoke test. Then use **运营总览 → 注册邀请** to issue a time-limited token, copy the plaintext from that one response, and deliver it through a separate private channel. The database and audit log retain only a digest and short hint. Change registration mode to **仅限邀请** only after the join, pending-content, review, notification, and withdrawal smoke path passes.
+
+For a small public opening, complete the same private smoke test, switch moderation to **发布前审核**, and only then switch registration to **开放注册**. New registrations require an email address and receive a display-once recovery code; the plaintext credential is never written to the database. Keep the registration, login and recovery rate limits in place.
+
+The public-opening defaults allow at most five pending entries per member, 100 MiB of
+member media per day, five video-processing attempts per hour, and 20 GiB of total
+referenced site media while preserving at least 256 MiB of free storage. The application
+checks capacity before decoding video and repeats the authoritative check inside the write
+transaction. Tune only the positive `MEPPP_MEMBER_PENDING_ENTRY_LIMIT`,
+`MEPPP_MEMBER_DAILY_MEDIA_BYTES`, `MEPPP_MEDIA_MAX_TOTAL_BYTES`, and
+`MEPPP_MEDIA_MIN_FREE_BYTES` values; keep a documented storage and backup budget.
+
+The image includes FFmpeg and ffprobe for bounded self-uploaded video validation and metadata-stripping remux. Install and manually run `meppp-external-refresh.service`, then enable `meppp-external-refresh.timer`; it refreshes only due X/YouTube cards in small batches through fixed official endpoints. A failed source refresh must not block ordinary text or local-media publishing.
 
 ## Reverse proxy trust
 
@@ -78,7 +92,7 @@ docker compose exec -T app python manage.py backup_sqlite
 
 The entrypoint runs the same verified backup automatically before migrations whenever an existing database is present. That protects upgrades, but it does not replace the scheduled daily job.
 
-Configure an aaPanel daily task using `deploy/cron/meppp-backup.sh`. It creates the online backup, runs a non-destructive restore drill, verifies every attachment against that database snapshot, refuses a destination on the same filesystem, incrementally copies immutable WebP media plus the database to an already-mounted independent disk, and verifies database and media checksums. Example aaPanel shell task:
+Configure an aaPanel daily task using `deploy/cron/meppp-backup.sh`. It creates the online backup, runs a non-destructive restore drill, verifies every image, video and poster against that database snapshot, refuses a destination on the same filesystem, incrementally copies immutable WebP/MP4/WebM media plus the database to an already-mounted independent disk, and verifies database and media checksums. Example aaPanel shell task:
 
 ```bash
 cd /opt/meppp && \

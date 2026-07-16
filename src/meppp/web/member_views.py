@@ -21,6 +21,14 @@ from meppp.audit.services import record_event
 from meppp.publishing.member_services import withdraw_comment, withdraw_entry
 from meppp.publishing.models import Comment, ContentState, Entry
 
+from .rate_limit import RateLimitExceeded, enforce_rate_limit
+
+
+def _rate_limited(request, error: RateLimitExceeded):
+    response = render(request, "web/429.html", status=429)
+    response.headers["Retry-After"] = str(error.retry_after)
+    return response
+
 
 @login_required
 def dashboard(request):
@@ -75,6 +83,17 @@ class MemberPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     form_class = StyledPasswordChangeForm
     template_name = "web/member_password.html"
     success_url = reverse_lazy("web:member-settings")
+
+    def post(self, request, *args, **kwargs):
+        try:
+            enforce_rate_limit(
+                request,
+                scope="account_security",
+                identity=str(request.user.public_id),
+            )
+        except RateLimitExceeded as error:
+            return _rate_limited(request, error)
+        return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
         with transaction.atomic():

@@ -6,7 +6,9 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from meppp.publishing.models import Attachment
+from meppp.publishing.models import Attachment, VideoAsset
+
+GENERATED_MEDIA_SUFFIXES = frozenset({".webp", ".mp4", ".webm"})
 
 
 class Command(BaseCommand):
@@ -26,12 +28,18 @@ class Command(BaseCommand):
         if not media_root.is_dir():
             raise CommandError("media root does not exist")
         referenced = set(Attachment.objects.values_list("file", flat=True))
+        referenced.update(VideoAsset.objects.values_list("file", flat=True))
+        referenced.update(VideoAsset.objects.values_list("poster", flat=True))
         cutoff = time.time() - minimum_age_hours * 3600
         candidates: list[tuple[Path, str]] = []
 
         if entries_root.exists():
-            for candidate in entries_root.rglob("*.webp"):
-                if candidate.is_symlink() or not candidate.is_file():
+            for candidate in entries_root.rglob("*"):
+                if (
+                    candidate.suffix.lower() not in GENERATED_MEDIA_SUFFIXES
+                    or candidate.is_symlink()
+                    or not candidate.is_file()
+                ):
                     continue
                 relative_name = candidate.relative_to(media_root).as_posix()
                 if relative_name not in referenced and candidate.stat().st_mtime <= cutoff:

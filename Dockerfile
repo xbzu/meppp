@@ -12,7 +12,10 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY --from=uv /uv /uvx /bin/
 
-RUN groupadd --system --gid 10001 meppp \
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 10001 meppp \
     && useradd --system --uid 10001 --gid meppp --home-dir /app meppp \
     && mkdir -p /app /data \
     && chown -R meppp:meppp /app /data

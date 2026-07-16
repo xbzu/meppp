@@ -1,0 +1,12 @@
+[Unit]
+Description=Prepare the daily MEPPP backup before the offsite pull
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=2m
+AccuracySec=1m
+Unit=meppp-backup-prepare.service
+
+[Install]
+WantedBy=timers.target

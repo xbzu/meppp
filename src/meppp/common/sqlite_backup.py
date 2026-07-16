@@ -14,6 +14,7 @@ MIN_DAILY_BACKUPS = 7
 MIN_WEEKLY_BACKUPS = 4
 BACKUP_PATTERN = re.compile(r"^meppp-(?P<stamp>\d{8}T\d{6}\.\d{6}Z)\.sqlite3$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+SQLITE_SIDECAR_SUFFIXES = ("-wal", "-shm", "-journal")
 
 
 class SQLiteBackupError(RuntimeError):
@@ -42,8 +43,25 @@ def _validate_retention(daily: int, weekly: int) -> None:
         raise SQLiteBackupError(f"weekly retention must be at least {MIN_WEEKLY_BACKUPS}")
 
 
-def _readonly_connection(path: Path) -> sqlite3.Connection:
-    return sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+def _readonly_connection(path: Path, *, immutable: bool = False) -> sqlite3.Connection:
+    query = "mode=ro&immutable=1" if immutable else "mode=ro"
+    return sqlite3.connect(f"{path.resolve().as_uri()}?{query}", uri=True)
+
+
+def _sidecar_paths(path: Path) -> tuple[Path, ...]:
+    return tuple(path.with_name(f"{path.name}{suffix}") for suffix in SQLITE_SIDECAR_SUFFIXES)
+
+
+def _remove_sidecars(path: Path) -> None:
+    for sidecar_path in _sidecar_paths(path):
+        sidecar_path.unlink(missing_ok=True)
+
+
+def _make_single_file_database(connection: sqlite3.Connection) -> None:
+    connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall()
+    journal_mode = connection.execute("PRAGMA journal_mode=DELETE").fetchone()
+    if journal_mode != ("delete",):
+        raise SQLiteBackupError("could not convert SQLite artifact to single-file mode")
 
 
 def _sync_file(path: Path) -> None:
@@ -70,7 +88,7 @@ def sha256_file(path: Path) -> str:
 
 def assert_integrity(path: Path) -> None:
     try:
-        with _readonly_connection(path) as connection:
+        with _readonly_connection(path, immutable=True) as connection:
             rows = connection.execute("PRAGMA integrity_check").fetchall()
     except sqlite3.Error as error:
         raise SQLiteBackupError(f"SQLite integrity check could not run for {path}") from error
@@ -219,6 +237,7 @@ def backup_database(
             sqlite3.connect(temporary_path) as destination,
         ):
             source.backup(destination, pages=256, sleep=0.05)
+            _make_single_file_database(destination)
         os.chmod(temporary_path, 0o600)
         assert_integrity(temporary_path)
         _sync_file(temporary_path)
@@ -233,6 +252,8 @@ def backup_database(
     except Exception:
         temporary_path.unlink(missing_ok=True)
         raise
+    finally:
+        _remove_sidecars(temporary_path)
 
     return BackupArtifact(
         path=backup_path,
@@ -255,8 +276,12 @@ def restore_to_new_path(
     verify_manifest(backup_path, manifest_path)
     assert_integrity(backup_path)
     try:
-        with _readonly_connection(backup_path) as source, sqlite3.connect(destination) as target:
+        with (
+            _readonly_connection(backup_path, immutable=True) as source,
+            sqlite3.connect(destination) as target,
+        ):
             source.backup(target, pages=256, sleep=0.05)
+            _make_single_file_database(target)
         os.chmod(destination, 0o600)
         assert_integrity(destination)
         _sync_file(destination)
@@ -267,4 +292,6 @@ def restore_to_new_path(
     except Exception:
         destination.unlink(missing_ok=True)
         raise
+    finally:
+        _remove_sidecars(destination)
     return RestoreResult(destination=destination, sha256=sha256_file(destination))

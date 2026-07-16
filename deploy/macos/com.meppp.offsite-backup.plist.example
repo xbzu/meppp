@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.meppp.offsite-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>/ABSOLUTE/PATH/TO/meppp/deploy/macos/meppp-offsite-pull.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>MEPPP_OFFSITE_VOLUME</key>
+    <string>/Volumes/REPLACE</string>
+    <key>MEPPP_OFFSITE_VOLUME_UUID</key>
+    <string>REPLACE-WITH-VOLUME-UUID</string>
+    <key>MEPPP_OFFSITE_DIR</key>
+    <string>/Volumes/REPLACE/站点备份/meppp.com/daily</string>
+    <key>MEPPP_BACKUP_REMOTE</key>
+    <string>root@38.22.89.60</string>
+    <key>MEPPP_BACKUP_SSH_KEY</key>
+    <string>/ABSOLUTE/PATH/TO/DEDICATED-READ-ONLY-KEY</string>
+    <key>MEPPP_BACKUP_KNOWN_HOSTS</key>
+    <string>/ABSOLUTE/PATH/TO/known_hosts</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>2</integer>
+    <key>Minute</key>
+    <integer>35</integer>
+  </dict>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>10</integer>
+  <key>ThrottleInterval</key>
+  <integer>600</integer>
+  <key>StandardOutPath</key>
+  <string>/private/tmp/meppp-offsite-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/private/tmp/meppp-offsite-backup.error.log</string>
+</dict>
+</plist>

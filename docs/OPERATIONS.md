@@ -36,8 +36,8 @@ Before first start:
 Start and inspect:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.1 .
-docker image inspect meppp:v0.1.0-rc.1 >/dev/null
+DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.2 .
+docker image inspect meppp:v0.1.0-rc.2 >/dev/null
 docker compose up --detach --no-build --wait app
 docker compose ps
 docker compose logs --tail=100 app
@@ -89,6 +89,18 @@ sh ./deploy/cron/meppp-backup.sh
 ```
 
 Schedule it once daily after the independent disk is mounted and monitored. The template intentionally fails instead of silently copying to the source filesystem. A backup inside the same `/data` filesystem is not disaster recovery. For a remote object store or backup host, keep the local verified-copy gate and add the provider's separately authenticated transfer after it; do not put those credentials in `.env` or this repository.
+
+### Pull backup to an operator Mac
+
+When the server has no independently mounted backup device, use the split preparation/pull path:
+
+1. Install the matching service and timer from `deploy/systemd/`. The service runs the release-matched `deploy/cron/meppp-prepare-backup.sh` from `/opt/meppp`. Enable the timer only after a manual service run succeeds. It creates an online database backup, performs a restore drill, verifies snapshot media, and writes a media manifest before the pull window.
+2. Generate a dedicated SSH key on the Mac. Add only its public key to the server with an `authorized_keys` restriction equivalent to `command="/usr/bin/rrsync -ro /srv/meppp/data",restrict`. Back up `authorized_keys` first and confirm the installed `rrsync` path. This key must not receive an unrestricted shell.
+3. Create the destination directory on the verified external volume. Copy `deploy/macos/com.meppp.offsite-backup.plist.example` to the user's LaunchAgents directory and replace every `REPLACE_...` value, including the expected external-volume UUID. Do not load a template containing placeholders, and do not use a symlink as the destination.
+4. Run `deploy/macos/meppp-offsite-pull.sh` manually once. Confirm that its `LAST_SUCCESS` marker is written on the external disk, the selected database returns `integrity_check=ok`, the copied database and media manifests verify, and the reported backup age is below 26 hours.
+5. Load the LaunchAgent and run one attended test. Monitor the success marker; a loaded job alone is not backup proof.
+
+The pull script fails closed when the external disk is absent, has the wrong UUID, is the root filesystem, lacks the configured free-space floor, or receives an old/mismatched snapshot. It uses additive copies only and never falls back to the Mac system disk. At every release and at least monthly, copy a selected external database artifact back to an isolated server staging directory and run `restore_sqlite` plus `verify_media` there. Do not overwrite the live database during this proof.
 
 Database backup alone is incomplete once an entry has images. Submitted media is immutable even after moderation or author withdrawal, so the scheduled job keeps a non-destructive media superset and a snapshot-specific SHA-256 manifest. It never uses `--delete`. Before any disaster recovery on a fresh host, restore the verified media mirror into `/data/media`, then restore the selected database and run:
 

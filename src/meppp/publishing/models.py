@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator, MaxLengthValidator, MinLengthValidator
 from django.db import models
 
-from meppp.common.models import PublicModel
+from meppp.common.models import AppendOnlyPublicModel, PublicModel
 
 
 class ContentState(models.TextChoices):
@@ -14,6 +14,11 @@ class ContentState(models.TextChoices):
     PUBLISHED = "published", "已发布"
     HIDDEN = "hidden", "已隐藏"
     DELETED = "deleted", "已删除"
+
+
+class ContentReviewOutcome(models.TextChoices):
+    APPROVE = "approve", "批准公开"
+    REJECT = "reject", "驳回并隐藏"
 
 
 class EntryQuerySet(models.QuerySet):
@@ -60,6 +65,13 @@ class Entry(PublicModel):
         raise ValidationError("Entries must use lifecycle states, not physical deletion")
 
 
+class PendingEntry(Entry):
+    class Meta:
+        proxy = True
+        verbose_name = "待审内容"
+        verbose_name_plural = "待审内容"
+
+
 class CommentQuerySet(models.QuerySet):
     def delete(self):
         raise ValidationError("Comments must use lifecycle states, not physical deletion")
@@ -96,6 +108,88 @@ class Comment(PublicModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Comments must use lifecycle states, not physical deletion")
+
+
+class PendingComment(Comment):
+    class Meta:
+        proxy = True
+        verbose_name = "待审评论"
+        verbose_name_plural = "待审评论"
+
+
+class ContentReviewDecision(AppendOnlyPublicModel):
+    entry = models.ForeignKey(
+        Entry,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="review_decisions",
+    )
+    comment = models.ForeignKey(
+        Comment,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="review_decisions",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="content_review_decisions",
+    )
+    outcome = models.CharField(max_length=16, choices=ContentReviewOutcome)
+    reason = models.CharField(max_length=500)
+    before_state = models.CharField(max_length=12, choices=ContentState)
+    after_state = models.CharField(max_length=12, choices=ContentState)
+
+    class Meta:
+        base_manager_name = "objects"
+        ordering = ["-created_at"]
+        verbose_name = "内容审核决定"
+        verbose_name_plural = "内容审核决定"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(entry__isnull=False, comment__isnull=True)
+                    | models.Q(entry__isnull=True, comment__isnull=False)
+                ),
+                name="publishing_review_exactly_one_target",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(before_state=ContentState.PENDING),
+                name="publishing_review_starts_pending",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(after_state__in=[ContentState.PUBLISHED, ContentState.HIDDEN]),
+                name="publishing_review_valid_final_state",
+            ),
+            models.UniqueConstraint(
+                fields=["entry"],
+                condition=models.Q(entry__isnull=False),
+                name="publishing_one_review_per_entry",
+            ),
+            models.UniqueConstraint(
+                fields=["comment"],
+                condition=models.Q(comment__isnull=False),
+                name="publishing_one_review_per_comment",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["outcome", "-created_at"]),
+            models.Index(fields=["actor", "-created_at"]),
+        ]
+
+    @property
+    def target(self):
+        return self.entry or self.comment
+
+    @property
+    def target_type(self) -> str:
+        return "entry" if self.entry_id is not None else "comment"
+
+    def __str__(self) -> str:
+        target = self.target
+        return f"{self.get_outcome_display()} · {target.public_id if target else 'missing'}"
 
 
 class Topic(PublicModel):

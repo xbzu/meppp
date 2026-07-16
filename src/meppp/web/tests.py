@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from ipaddress import ip_network
 from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from meppp.accounts.models import Profile, User
+from meppp.accounts.services import issue_invitation
 from meppp.configuration.models import (
     ModerationMode,
     RegistrationMode,
@@ -37,7 +40,8 @@ class WebTestCase(TestCase):
 
     def create_member(self, username: str, **kwargs) -> User:
         user = User.objects.create_user(username=username, password=PASSWORD, **kwargs)
-        Profile.objects.create(user=user, display_name=username.title())
+        Profile.objects.filter(user=user).update(display_name=username.title())
+        user.profile.refresh_from_db()
         return user
 
     def open_site(self, **changes) -> SiteConfiguration:
@@ -190,12 +194,39 @@ class AuthenticationUiTests(WebTestCase):
         self.assertEqual(post_response.status_code, 403)
         self.assertFalse(User.objects.filter(username="newmember").exists())
 
-    def test_invite_mode_fails_closed_until_invites_exist(self):
+    def test_invite_mode_displays_the_invitation_field(self):
         SiteConfiguration.objects.create(pk=1, registration_mode=RegistrationMode.INVITE)
 
         response = self.client.get(reverse("web:register"))
 
-        self.assertContains(response, "邀请凭证流程尚未启用")
+        self.assertContains(response, "使用邀请加入")
+        self.assertContains(response, "邀请码")
+
+    def test_invite_registration_claims_the_token_and_logs_the_member_in(self):
+        self.open_site(registration_mode=RegistrationMode.INVITE)
+        owner = User.objects.create_superuser(username="owner")
+        invitation, plaintext = issue_invitation(
+            issuer=owner,
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+
+        response = self.client.post(
+            reverse("web:register"),
+            {
+                "username": "invited-member",
+                "email": "",
+                "password1": PASSWORD,
+                "password2": PASSWORD,
+                "invitation_token": plaintext,
+                "accept_rules": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("web:home"))
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.claimed_by.username, "invited-member")
+        self.assertEqual(int(self.client.session["_auth_user_id"]), invitation.claimed_by_id)
+        self.assertTrue(Profile.objects.filter(user=invitation.claimed_by).exists())
 
     def test_open_registration_creates_user_profile_and_rotates_into_session(self):
         self.open_site()

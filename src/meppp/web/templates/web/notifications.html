@@ -13,16 +13,23 @@
             <span class="notification-dot" aria-hidden="true"></span>
             <div>
               <p>
-                {% if notification.actor %}<strong>@{{ notification.actor.username }}</strong>{% else %}<strong>系统</strong>{% endif %}
-                {% if notification.kind == 'follow' %}关注了你
+                {% if notification.kind == 'moderation' %}
+                  <strong>系统</strong>
+                  {% if notification.payload.content_type == 'comment' %}你的评论{% else %}你的内容{% endif %}
+                  {% if notification.payload.outcome == 'approve' %}已通过审核{% elif notification.payload.outcome == 'reject' %}未通过审核{% else %}审核结果已更新{% endif %}
+                {% else %}
+                  {% if notification.actor %}<strong>@{{ notification.actor.username }}</strong>{% else %}<strong>系统</strong>{% endif %}
+                  {% if notification.kind == 'follow' %}关注了你
                 {% elif notification.kind == 'like' %}赞了你的内容
                 {% elif notification.kind == 'comment' %}评论了你的内容
-                {% elif notification.kind == 'moderation' %}更新了一项审核结果
                 {% else %}发来一条通知{% endif %}
+                {% endif %}
               </p>
+              {% if notification.kind == 'moderation' and notification.payload.reason %}<p class="notification-reason">审核说明：{{ notification.payload.reason }}</p>{% endif %}
               <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at|timesince }}前</time>
             </div>
-            {% if notification.target_type == 'entry' and notification.target_public_id %}<a href="{% url 'web:entry-detail' notification.target_public_id %}" aria-label="打开相关内容">查看 <span aria-hidden="true">→</span></a>
+            {% if notification.kind == 'moderation' %}<a href="{% url 'web:member-dashboard' %}" aria-label="查看我的内容记录">查看记录 <span aria-hidden="true">→</span></a>
+            {% elif notification.target_type == 'entry' and notification.target_public_id %}<a href="{% url 'web:entry-detail' notification.target_public_id %}" aria-label="打开相关内容">查看 <span aria-hidden="true">→</span></a>
             {% elif notification.target_type == 'user' and notification.target_public_id %}<a href="{% url 'web:member-profile' notification.target_public_id %}" aria-label="打开相关成员">查看 <span aria-hidden="true">→</span></a>{% endif %}
           </li>
         {% endfor %}

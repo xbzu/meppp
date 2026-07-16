@@ -4,8 +4,11 @@ MEPPP is a lightweight community product. Its first complete milestone is a smal
 
 ## Current UI milestone
 
-- Implemented: public chronological and following feeds, text search, topic filtering, member pages, registration modes, login/logout, text publishing, flat comments, likes, follows, notifications, and bound-target reports.
-- Implemented: post-moderation publishing and a real pending state for pre-moderation.
+- Implemented: public chronological and following feeds, text search, topic filtering, member pages, login/logout, text publishing, flat comments, likes, follows, notifications, and bound-target reports.
+- Implemented: open, closed, and single-use invitation registration; invitations can expire, be revoked, and be bound to one normalized email address.
+- Implemented: a private member desk for content state, profile and password changes, and author withdrawal without destroying moderation evidence.
+- Implemented: post-moderation publishing plus dedicated pending-entry and pending-comment queues for pre-moderation. Every decision requires a reason, is append-only, and notifies the author.
+- Implemented: a permission-aware operations dashboard and idempotent code-defined `运营` and `审核` groups. The owner remains a Django superuser rather than a second role system.
 - Implemented: responsive desktop/mobile templates, keyboard focus, security headers, CSRF, same-origin redirects, form idempotency, and account/IP rate limits.
 - Deliberately closed: member avatar and attachment uploads. Extension checks are not treated as a safe image pipeline.
 - Still planned for the target MVP: decoded/re-encoded image uploads with dimensions, size limits, alternative text, transactional cleanup, and dedicated abuse tests.
@@ -13,16 +16,17 @@ MEPPP is a lightweight community product. Its first complete milestone is a smal
 ## MVP loop
 
 1. Visitors can browse a public chronological feed, member pages, topics, and search results.
-2. Members can register, sign in, publish text, follow, like, and leave flat comments. Validated image publishing is the next milestone.
-3. Members receive database-backed notifications for follows, likes, comments, moderation, and system events.
+2. An owner can issue a one-time invitation; an invited member can register, sign in, publish text, follow, like, and leave flat comments.
+3. Members receive database-backed notifications for follows, likes, comments, moderation outcomes and reasons, and system events.
 4. Members can report a member, entry, or comment.
-5. Staff can triage reports, hide content, suspend accounts, and restore prior decisions.
-6. Every moderation and configuration change creates an application-enforced append-only audit event.
+5. Staff can review pending content, triage reports, hide content, suspend accounts, and restore prior report decisions through dedicated workflows.
+6. Members can inspect their own pending, public, hidden, and withdrawn records and withdraw their pending or public content.
+7. Every moderation, invitation, member-security, and configuration change creates an application-enforced append-only audit event.
 
 ## Core records
 
-- User and profile
-- Entry, comment, topic, and attachment
+- User, profile, and invitation
+- Entry, comment, topic, attachment, and content review decision
 - Follow and entry like
 - Notification
 - Report and moderation decision

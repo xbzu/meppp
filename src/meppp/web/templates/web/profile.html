@@ -18,7 +18,10 @@
         </dl>
       </div>
       <div class="profile-actions">
-        {% if request.user.is_authenticated and request.user != member %}
+        {% if request.user == member %}
+          <a class="button-primary" href="{% url 'web:member-dashboard' %}">管理我的内容</a>
+          <a class="button-secondary" href="{% url 'web:member-settings' %}">编辑公开资料</a>
+        {% elif request.user.is_authenticated %}
           <form method="post" action="{% url 'web:member-follow' member.public_id %}">
             {% csrf_token %}
             <input type="hidden" name="state" value="{% if is_following %}off{% else %}on{% endif %}">

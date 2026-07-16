@@ -9,6 +9,7 @@ admin.site.index_title = "站点管理"
 
 urlpatterns = [
     path("", include("meppp.web.urls")),
+    path("admin/operations/", include("meppp.operations.urls")),
     path("admin/", admin.site.urls),
     path("health/", include("meppp.health.urls")),
 ]

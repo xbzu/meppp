@@ -28,6 +28,8 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "meppp.web" = ["templates/**/*.html", "static/**/*"]
+"meppp.publishing" = ["templates/**/*.html", "static/**/*"]
+"meppp.operations" = ["templates/**/*.html", "static/**/*"]
 
 [tool.ruff]
 target-version = "py314"

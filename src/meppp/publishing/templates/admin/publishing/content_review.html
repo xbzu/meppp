@@ -1,0 +1,82 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block extrahead %}{{ block.super }}{{ media }}{% endblock %}
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/forms.css' %}">
+  <link rel="stylesheet" href="{% static 'publishing/admin_review.css' %}">
+{% endblock %}
+{% block coltype %}colM{% endblock %}
+{% block bodyclass %}{{ block.super }} app-publishing content-review-page{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">首页</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{{ queue_url }}">{{ opts.verbose_name_plural }}</a>
+    &rsaquo; {{ title }}
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main" class="content-review-layout">
+    <section class="review-evidence" aria-labelledby="review-evidence-title">
+      <div class="review-section-heading">
+        <div>
+          <p class="review-kicker">只读审核对象</p>
+          <h2 id="review-evidence-title">{{ target_label }}证据</h2>
+        </div>
+        <span class="review-status">{{ target.get_state_display }}</span>
+      </div>
+      <dl class="review-metadata">
+        <div><dt>作者</dt><dd>@{{ target.author.username }}</dd></div>
+        <div><dt>提交时间</dt><dd>{{ target.created_at }}</dd></div>
+        <div><dt>对象编号</dt><dd>{{ target.public_id }}</dd></div>
+        {% if is_comment %}
+          <div class="review-metadata-wide"><dt>原内容</dt><dd>{{ target.entry.body|truncatechars:180 }}</dd></div>
+        {% endif %}
+      </dl>
+      <div class="review-body">{{ target.body|linebreaksbr }}</div>
+    </section>
+
+    <form method="post" class="review-decision-form" novalidate>
+      {% csrf_token %}
+      <div class="review-section-heading">
+        <div>
+          <p class="review-kicker">一次性决定</p>
+          <h2>选择审核结论</h2>
+        </div>
+      </div>
+      <p class="review-warning">提交后不能修改。批准会立即公开，驳回会保持隐藏；系统会记录审核人、理由和状态变化。</p>
+      {% if form.non_field_errors %}<div class="errornote">{{ form.non_field_errors }}</div>{% endif %}
+
+      <div class="review-field{% if form.outcome.errors %} errors{% endif %}">
+        {{ form.outcome.errors }}
+        <fieldset>
+          <legend>{{ form.outcome.label }}</legend>
+          {{ form.outcome }}
+        </fieldset>
+        <p class="help">{{ form.outcome.help_text }}</p>
+      </div>
+
+      <div class="review-field{% if form.reason.errors %} errors{% endif %}">
+        {{ form.reason.errors }}
+        {{ form.reason.label_tag }}
+        {{ form.reason }}
+        <p class="help">{{ form.reason.help_text }}</p>
+      </div>
+
+      <div class="review-confirm{% if form.confirm.errors %} errors{% endif %}">
+        {{ form.confirm.errors }}
+        <label for="{{ form.confirm.id_for_label }}">{{ form.confirm }} <span>{{ form.confirm.label }}</span></label>
+      </div>
+
+      <div class="submit-row review-submit-row">
+        <input type="submit" class="default" value="提交审核决定">
+        <a class="button" href="{{ queue_url }}">返回待审队列</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

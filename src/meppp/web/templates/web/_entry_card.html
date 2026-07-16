@@ -17,9 +17,9 @@
   </div>
 
   {% if entry.attachments.all %}
-    <div class="media-grid media-count-{{ entry.attachments.all|length }}">
+    <div class="media-grid media-count-{{ entry.attachments.all|length }}" role="group" aria-label="{{ entry.attachments.all|length }} 张配图" data-entry-media>
       {% for attachment in entry.attachments.all %}
-        <img src="{{ attachment.file.url }}" alt="{{ attachment.alt_text|default:'内容配图' }}" loading="lazy" width="{{ attachment.width|default:960 }}" height="{{ attachment.height|default:720 }}">
+        <img src="{% url 'web:attachment-file' attachment.public_id %}" alt="{{ attachment.alt_text }}" loading="lazy" decoding="async" width="{{ attachment.width }}" height="{{ attachment.height }}" data-entry-image>
       {% endfor %}
     </div>
   {% endif %}

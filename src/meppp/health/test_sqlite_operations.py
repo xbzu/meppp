@@ -45,7 +45,9 @@ class SQLiteBackupTests(SimpleTestCase):
             stat.S_IMODE(artifact.path.stat().st_mode),
             0o600,
         )
+        self.assertEqual(self._sidecars_in(self.backup_dir), [])
         with sqlite3.connect(artifact.path) as connection:
+            self.assertEqual(connection.execute("PRAGMA journal_mode").fetchone(), ("delete",))
             self.assertEqual(
                 connection.execute("SELECT body FROM notes").fetchone(),
                 ("committed in WAL",),
@@ -54,8 +56,16 @@ class SQLiteBackupTests(SimpleTestCase):
         destination = self.root / "drill" / "restored.sqlite3"
         result = restore_to_new_path(artifact.path, destination)
         self.assertEqual(result.destination, destination.resolve())
+        self.assertEqual(self._sidecars_in(destination.parent), [])
         with sqlite3.connect(destination) as connection:
+            self.assertEqual(connection.execute("PRAGMA journal_mode").fetchone(), ("delete",))
             self.assertEqual(connection.execute("PRAGMA integrity_check").fetchone(), ("ok",))
+
+    @staticmethod
+    def _sidecars_in(directory: Path) -> list[Path]:
+        return sorted(
+            path for path in directory.iterdir() if path.name.endswith(("-wal", "-shm", "-journal"))
+        )
 
     def test_restore_refuses_to_overwrite_an_existing_database(self):
         artifact = backup_database(self.database, self.backup_dir)

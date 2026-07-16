@@ -20,7 +20,7 @@ MEPPP uses an independent “quiet community ledger” direction. It is built fo
 | Member | Public name, bio, counts, public entries, follow state |
 | Login/register | Public member authentication, fail-closed registration modes |
 | My community | Recipient-only content states, profile/password settings, and author withdrawal |
-| Composer | Text and up to three existing topics; pending state in pre-moderation mode |
+| Composer | Text, up to four images with optional alternative text, and up to three existing topics; pending state in pre-moderation mode |
 | Notifications | Recipient-only follow, like, comment, moderation outcome/reason, and system notices |
 | Report | Private reason/details form bound to a visible user, entry, or comment |
 | Admin | Branded operations dashboard, one-time invitations, dedicated content queues, configuration, and report workflows |
@@ -41,7 +41,8 @@ MEPPP uses an independent “quiet community ledger” direction. It is built fo
 - Public URLs use UUIDs and inactive or non-public targets resolve as not found.
 - Public pages ship a same-origin CSP, restrictive permissions policy, and referrer policy.
 - Authenticated and authentication responses are private/no-store and vary on cookies.
-- Member uploads remain closed until image decoding, re-encoding, size/pixel limits, EXIF handling, and transactional cleanup are complete.
+- Entry images accept JPG, PNG and WebP input, provide accessible ordered previews, and are served only after server decoding and re-encoding. Empty alternative text is preserved for decorative images rather than replaced with noisy fallback text.
+- Avatar upload remains closed until replacement, retention and moderation behaviour are separately defined.
 
 ## Clean-room boundary
 

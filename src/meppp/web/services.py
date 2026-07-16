@@ -7,8 +7,13 @@ from collections.abc import Iterable
 from django.conf import settings
 from django.db import transaction
 
+from meppp.publishing.image_processing import ProcessedImage
 from meppp.publishing.models import Comment, Entry, Topic
-from meppp.publishing.services import add_comment, publish_entry
+from meppp.publishing.services import (
+    add_comment,
+    cleanup_stored_files,
+    create_entry_records,
+)
 
 from .models import SubmissionClaim
 
@@ -35,7 +40,6 @@ def _claim_submission(*, member, purpose: str, token: str) -> None:
         raise DuplicateSubmission
 
 
-@transaction.atomic
 def publish_entry_once(
     *,
     author,
@@ -43,9 +47,23 @@ def publish_entry_once(
     topics: Iterable[Topic],
     purpose: str,
     token: str,
+    images: Iterable[ProcessedImage] = (),
 ) -> Entry:
-    _claim_submission(member=author, purpose=purpose, token=token)
-    return publish_entry(author=author, body=body, topics=topics)
+    stored_files: list[tuple] = []
+    try:
+        with transaction.atomic():
+            _claim_submission(member=author, purpose=purpose, token=token)
+            entry = create_entry_records(
+                author=author,
+                body=body,
+                topics=topics,
+                images=images,
+                stored_files=stored_files,
+            )
+        return entry
+    except BaseException:
+        cleanup_stored_files(stored_files)
+        raise
 
 
 @transaction.atomic

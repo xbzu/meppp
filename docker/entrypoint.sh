@@ -5,6 +5,8 @@ umask 077
 data_dir="${MEPPP_DATA_DIR:-/data}"
 database_path="${data_dir}/meppp.sqlite3"
 
+mkdir -p "${data_dir}/media"
+
 if [ "${MEPPP_BACKUP_BEFORE_MIGRATE:-1}" = "1" ] && [ -f "$database_path" ]; then
     python manage.py backup_sqlite \
         --database "$database_path" \

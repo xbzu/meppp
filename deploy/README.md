@@ -19,7 +19,7 @@ Recommended host paths:
 
 ```text
 /opt/meppp/                        repository checkout and Compose project
-/srv/meppp/data/                   SQLite, generated static files, backup manifests
+/srv/meppp/data/                   SQLite, private media, generated static files, backup manifests
 /www/backup/meppp.com/             independently mounted backup copy
 /www/wwwroot/meppp.com/            ACME challenge/aaPanel placeholder only
 ```
@@ -55,8 +55,8 @@ Build without assuming a buildx plugin, then prove the immutable image exists:
 
 ```bash
 cd /opt/meppp
-DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.1 .
-docker image inspect meppp:v0.1.0-rc.1 >/dev/null
+DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.2 .
+docker image inspect meppp:v0.1.0-rc.2 >/dev/null
 docker compose up --detach --no-build --wait app
 ```
 
@@ -111,14 +111,26 @@ No DNS or Cloudflare setting is automated by this repository.
 
 ## Daily backup task
 
-Mount an independent backup disk, then create an aaPanel daily shell task from `deploy/cron/meppp-backup.sh`. The task fails if source and destination have the same filesystem device, performs an online SQLite backup, runs a fresh-path restore drill, copies the database and SHA-256 manifest, and verifies the independent copy. Example:
+Mount an independent backup disk, then create an aaPanel daily shell task from `deploy/cron/meppp-backup.sh`. The task fails if source and destination have the same filesystem device or media contains a symbolic link, performs an online SQLite backup, runs a fresh-path restore drill, verifies all attachment files against the snapshot, incrementally copies immutable media plus the database, and verifies both SHA-256 manifests. Example:
 
 ```bash
 cd /opt/meppp && \
 MEPPP_APP_DIR=/opt/meppp \
-MEPPP_HOST_BACKUP_DIR=/srv/meppp/data/backups/sqlite \
+MEPPP_HOST_DATA_DIR=/srv/meppp/data \
 MEPPP_OFFSITE_DIR=/www/backup/meppp.com \
 sh ./deploy/cron/meppp-backup.sh
 ```
 
-Do not schedule the task until the destination mount and its monitoring are proven. See `docs/OPERATIONS.md` for retention, restore drills, and attended recovery.
+For the initial `meppp.com` deployment, the independent copy is pulled to the operator Mac instead of relying on `/www/backup` on the same server disk. Install the source-side preparation timer and run it once before enabling the Mac job:
+
+```bash
+install -m 0644 deploy/systemd/meppp-backup-prepare.service /etc/systemd/system/
+install -m 0644 deploy/systemd/meppp-backup-prepare.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now meppp-backup-prepare.timer
+systemctl start meppp-backup-prepare.service
+```
+
+Give the Mac a dedicated read-only SSH key whose server-side `authorized_keys` entry is restricted to `/srv/meppp/data` with `rrsync`, then install the machine-specific copy of `deploy/macos/com.meppp.offsite-backup.plist.example`. Create the destination directory on the external volume first, and fill in the external volume UUID and paths before loading it. `deploy/macos/meppp-offsite-pull.sh` refuses a missing directory, the wrong or missing volume, or a destination outside that volume; it never uses `--delete`, verifies the copied database and media manifests, and marks success only while the newest database is under 26 hours old.
+
+The Nginx template intentionally has no public `/media/` alias. Images pass through the state-aware application route so pending, hidden, withdrawn, or inactive-author media cannot be fetched directly. Do not schedule the backup task until the destination mount and its monitoring are proven. See `docs/OPERATIONS.md` for retention, media reconciliation, restore drills, and attended recovery.

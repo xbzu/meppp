@@ -29,6 +29,11 @@ urlpatterns = [
         name="member-comment-withdraw",
     ),
     path("write/", views.entry_create, name="entry-create"),
+    path(
+        "media/attachment/<uuid:public_id>/",
+        views.attachment_file,
+        name="attachment-file",
+    ),
     path("entry/<uuid:public_id>/", views.entry_detail, name="entry-detail"),
     path("entry/<uuid:public_id>/comment/", views.comment_create, name="comment-create"),
     path("entry/<uuid:public_id>/like/", views.entry_like, name="entry-like"),

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
@@ -8,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.db.models import Count, Q
-from django.http import Http404, HttpResponseBadRequest
+from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -25,7 +27,8 @@ from meppp.moderation.models import SubjectType
 from meppp.moderation.services import submit_report
 from meppp.notifications.models import Notification
 from meppp.notifications.services import mark_all_read
-from meppp.publishing.models import Comment, ContentState
+from meppp.publishing.image_processing import process_image_uploads
+from meppp.publishing.models import Attachment, Comment, ContentState
 from meppp.publishing.selectors import active_topics, public_comments, public_entries
 from meppp.social.models import Follow
 from meppp.social.services import set_entry_like, set_follow
@@ -213,24 +216,30 @@ def entry_create(request):
             )
         except RateLimitExceeded as error:
             return _rate_limited(request, error)
-        form = EntryForm(request.POST, configuration=configuration)
+        form = EntryForm(request.POST, request.FILES, configuration=configuration)
         if form.is_valid():
             token = form.cleaned_data["nonce"]
             if not nonce_is_issued(request, purpose=purpose, token=token):
                 form.add_error(None, "这个发布表单已经处理过，请刷新页面后再试。")
             else:
                 try:
+                    images = process_image_uploads(
+                        uploads=form.cleaned_data["images"],
+                        alt_texts=form.cleaned_data["image_alt_texts"],
+                        max_bytes=form.maximum_image_bytes,
+                    )
                     entry = publish_entry_once(
                         author=request.user,
                         body=form.cleaned_data["body"],
                         topics=form.cleaned_data["topics"],
                         purpose=purpose,
                         token=token,
+                        images=images,
                     )
                 except DuplicateSubmission:
                     form.add_error(None, "这个发布表单已经处理过，请刷新页面后再试。")
                 except ValidationError as error:
-                    form.add_error(None, error)
+                    form.add_error("images", error)
                 else:
                     consume_nonce(request, purpose=purpose, token=token)
                     if entry.state == ContentState.PENDING:
@@ -244,6 +253,59 @@ def entry_create(request):
             initial={"nonce": issue_nonce(request, purpose=purpose)},
         )
     return render(request, "web/entry_form.html", {"form": form})
+
+
+@never_cache
+@require_http_methods(["GET", "HEAD"])
+def attachment_file(request, public_id):
+    attachment = get_object_or_404(
+        Attachment.objects.select_related("entry", "entry__author"),
+        public_id=public_id,
+        mime_type="image/webp",
+        file__endswith=".webp",
+        width__isnull=False,
+        height__isnull=False,
+    )
+    entry = attachment.entry
+    expected_name = f"entries/{entry.public_id}/{attachment.public_id}.webp"
+    if attachment.file.name != expected_name:
+        raise Http404
+    is_public = entry.state == ContentState.PUBLISHED and entry.author.is_active
+    if not is_public:
+        user = request.user
+        is_own_pending = (
+            user.is_authenticated
+            and user.pk == entry.author_id
+            and user.is_active
+            and entry.state == ContentState.PENDING
+        )
+        can_review = (
+            user.is_authenticated
+            and user.is_active
+            and user.is_staff
+            and user.has_perm("publishing.change_entry")
+        )
+        if not (is_own_pending or can_review):
+            raise Http404
+
+    try:
+        attachment.file.open("rb")
+        if os.fstat(attachment.file.file.fileno()).st_size != attachment.byte_size:
+            attachment.file.close()
+            raise Http404
+    except (FileNotFoundError, OSError, ValueError) as error:
+        raise Http404 from error
+    response = FileResponse(
+        attachment.file,
+        content_type="image/webp",
+        as_attachment=False,
+        filename=f"{attachment.public_id}.webp",
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Content-Length"] = str(attachment.byte_size)
+    return response
 
 
 def entry_detail(request, public_id):

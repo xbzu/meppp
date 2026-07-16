@@ -32,4 +32,4 @@ USER meppp
 EXPOSE 8000
 
 ENTRYPOINT ["./docker/entrypoint.sh"]
-CMD ["gunicorn", "meppp.config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["gunicorn", "meppp.config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "2", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]

@@ -3,10 +3,12 @@ from __future__ import annotations
 import os
 import re
 from datetime import timedelta
+from io import BytesIO
 from pathlib import Path
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.utils import timezone
+from PIL import Image
 from playwright.sync_api import expect, sync_playwright
 
 from meppp.accounts.models import Profile, User
@@ -24,6 +26,19 @@ RESULTS_DIR = Path("test-results")
 # Playwright's synchronous driver owns an event loop in this test thread. Database
 # operations remain sequential; this test-only flag is never part of runtime settings.
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+
+
+def browser_image_payload(
+    *,
+    name: str,
+    color: str,
+    image_format: str = "JPEG",
+    size: tuple[int, int] = (120, 80),
+):
+    content = BytesIO()
+    Image.new("RGB", size, color).save(content, format=image_format)
+    mime_type = "image/png" if image_format == "PNG" else "image/jpeg"
+    return {"name": name, "mimeType": mime_type, "buffer": content.getvalue()}
 
 
 class PublicUiBrowserTests(StaticLiveServerTestCase):
@@ -165,6 +180,106 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page.get_by_text("评论流程也已经通过浏览器。")).to_be_visible()
         self.assert_browser_clean()
 
+    def test_member_can_publish_four_safe_images_on_mobile(self):
+        self.login("lin")
+        self.page.get_by_role("link", name="写一条").click()
+        self.page.wait_for_load_state("networkidle")
+        self.page.get_by_label("正文").fill("四张配图也保持轻量、清楚和可访问。")
+        payloads = [
+            browser_image_payload(name="one.jpg", color="firebrick"),
+            browser_image_payload(name="two.png", color="navy", image_format="PNG"),
+            browser_image_payload(name="three.jpg", color="olive"),
+            browser_image_payload(name="four.jpg", color="purple"),
+        ]
+        self.page.get_by_label("选择图片").set_input_files(payloads)
+        expect(self.page.locator("[data-image-preview-item]")).to_have_count(4)
+        expect(self.page.locator("[data-image-status]")).to_contain_text("已选择 4 / 4 张")
+        remove_buttons = self.page.get_by_role("button", name=re.compile(r"移除图片 \d："))
+        expect(remove_buttons).to_have_count(4)
+        for locator in remove_buttons.all():
+            box = locator.bounding_box()
+            self.assertIsNotNone(box)
+            self.assertGreaterEqual(box["height"], 44)
+
+        expect(self.page.get_by_label("图片 1（one.jpg）的替代文本（选填）")).to_be_visible()
+
+        alt_inputs = self.page.locator("[data-image-alt]")
+        for index, value in enumerate(("红色记录", "蓝色记录", "", "紫色记录")):
+            alt_inputs.nth(index).fill(value)
+
+        self.page.get_by_role("button", name="移除图片 1：one.jpg").click()
+        expect(self.page.locator("[data-image-preview-item]")).to_have_count(3)
+        self.page.get_by_label("选择图片").set_input_files(payloads)
+        for index, value in enumerate(("红色记录", "蓝色记录", "", "紫色记录")):
+            self.page.locator("[data-image-alt]").nth(index).fill(value)
+
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.assertTrue(
+            self.page.locator("html").evaluate(
+                "element => element.scrollWidth <= element.clientWidth"
+            )
+        )
+        self.page.get_by_role("button", name="发布内容").click()
+        self.page.wait_for_load_state("networkidle")
+
+        expect(self.page).to_have_url(re.compile(r"/entry/[0-9a-f-]+/"))
+        expect(self.page.locator(".media-count-4")).to_be_visible()
+        expect(self.page.locator("[data-entry-image]")).to_have_count(4)
+        published_entry = Entry.objects.get(body="四张配图也保持轻量、清楚和可访问。")
+        attachment_evidence = []
+        for attachment in published_entry.attachments.all():
+            expected_name = f"entries/{published_entry.public_id}/{attachment.public_id}.webp"
+            attachment_evidence.append(
+                (
+                    str(attachment.public_id),
+                    attachment.file.name,
+                    attachment.byte_size,
+                    Path(attachment.file.path).stat().st_size,
+                )
+            )
+            self.assertEqual(attachment.file.name, expected_name)
+            self.assertEqual(Path(attachment.file.path).stat().st_size, attachment.byte_size)
+        image_widths = self.page.locator("[data-entry-image]").evaluate_all(
+            "images => images.map(image => image.naturalWidth)"
+        )
+        self.assertTrue(
+            all(width > 0 for width in image_widths),
+            f"widths={image_widths}; bad={self.bad_responses}; attachments={attachment_evidence}",
+        )
+        self.assertEqual(
+            self.page.locator("[data-entry-image]").evaluate_all(
+                "images => images.map(image => image.getAttribute('alt'))"
+            ),
+            ["红色记录", "蓝色记录", "", "紫色记录"],
+        )
+        self.page.screenshot(path=RESULTS_DIR / "safe-images-mobile.png", full_page=True)
+        self.assert_browser_clean()
+
+    def test_single_portrait_image_is_not_cropped_on_desktop(self):
+        self.login("lin")
+        self.page.get_by_role("link", name="写一条").click()
+        self.page.wait_for_load_state("networkidle")
+        self.page.get_by_label("正文").fill("极窄竖图也应完整展示。")
+        self.page.get_by_label("选择图片").set_input_files(
+            browser_image_payload(
+                name="portrait.jpg",
+                color="teal",
+                size=(100, 800),
+            )
+        )
+        self.page.get_by_label("图片 1（portrait.jpg）的替代文本（选填）").fill("竖向记录")
+        self.page.get_by_role("button", name="发布内容").click()
+        self.page.wait_for_load_state("networkidle")
+
+        image = self.page.locator(".media-count-1 [data-entry-image]")
+        expect(image).to_be_visible()
+        self.assertEqual(
+            image.evaluate("element => getComputedStyle(element).objectFit"),
+            "contain",
+        )
+        self.assertLessEqual(image.evaluate("element => element.clientHeight"), 660)
+        self.assert_browser_clean()
+
     def test_member_can_report_bound_entry(self):
         self.login("reader")
         self.page.get_by_role("link", name="举报").first.click()
@@ -253,6 +368,10 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
 
         self.page.get_by_role("link", name="写一条").click()
         self.page.get_by_label("正文").fill("邀请制审核闭环：这条内容先进入待审队列。")
+        self.page.get_by_label("选择图片").set_input_files(
+            browser_image_payload(name="review.jpg", color="darkgreen")
+        )
+        self.page.locator("[data-image-alt]").fill("审核流程配图")
         self.page.get_by_role("button", name="发布内容").click()
         self.page.wait_for_load_state("networkidle")
         expect(self.page.get_by_text("内容已提交审核", exact=False)).to_be_visible()
@@ -275,6 +394,9 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         ).click()
         expect(self.page.get_by_text("邀请制审核闭环：这条内容先进入待审队列。")).to_be_visible()
         self.page.get_by_role("link", name="立即审核").click()
+        review_image = self.page.locator(".review-media-grid img")
+        expect(review_image).to_be_visible()
+        self.assertGreater(review_image.evaluate("image => image.naturalWidth"), 0)
         self.page.get_by_label("批准公开").check()
         self.page.get_by_label("审核理由").fill("表达清楚，符合社区公约。")
         self.page.get_by_label("我已核对内容、作者和审核结论").check()

@@ -4,13 +4,18 @@
     {{ form.non_field_errors }}
   </div>
 {% endif %}
-{% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+{% for hidden in form.hidden_fields %}
+  {{ hidden }}
+  {% if hidden.errors %}<div class="field-errors" role="alert">{{ hidden.errors }}</div>{% endif %}
+{% endfor %}
 {% for field in form.visible_fields %}
   {% if field.name == 'accept_rules' %}
     <div class="form-field form-field-check{% if field.errors %} has-error{% endif %}">
       <label class="check-row" for="{{ field.id_for_label }}">{{ field }} <span>{{ field.label }}</span></label>
       {% if field.errors %}<div class="field-errors">{{ field.errors }}</div>{% endif %}
     </div>
+  {% elif field.name == 'images' %}
+    {% include 'web/_image_upload.html' with field=field form=form only %}
   {% else %}
     <div class="form-field{% if field.errors %} has-error{% endif %}">
       <label for="{{ field.id_for_label }}">{{ field.label }}</label>

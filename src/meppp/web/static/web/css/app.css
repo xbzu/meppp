@@ -567,6 +567,7 @@ img {
 .media-count-1 img {
   height: auto;
   max-height: 660px;
+  object-fit: contain;
 }
 
 .media-count-3 img:last-child {
@@ -914,6 +915,126 @@ textarea.field-control {
 .field-control:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+.image-composer {
+  display: grid;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  gap: 10px;
+}
+
+.image-composer legend {
+  padding: 0;
+  font-weight: 750;
+}
+
+.image-picker {
+  display: flex;
+  min-width: 0;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  cursor: pointer;
+  gap: 16px;
+  transition: border-color 140ms, box-shadow 140ms, background 140ms;
+}
+
+.image-picker:hover {
+  border-color: var(--forest);
+  background: var(--forest-pale);
+}
+
+.image-picker span {
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-align: right;
+}
+
+.image-input:focus-visible + .image-picker {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.image-status {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.image-status.has-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.image-preview-list {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.image-preview-item {
+  min-width: 0;
+  border-top: 3px solid var(--ink);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.image-preview-frame {
+  display: grid;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  background: var(--line);
+  place-items: center;
+}
+
+.image-preview-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-preview-details {
+  display: grid;
+  min-width: 0;
+  padding: 12px;
+  gap: 8px;
+}
+
+.image-position {
+  color: var(--forest);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.image-filename {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.image-preview-details label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.image-alt-input {
+  min-width: 0;
+}
+
+.image-remove {
+  width: fit-content;
+  min-width: 64px;
+  min-height: 44px;
 }
 
 .has-error .field-control {
@@ -1797,6 +1918,26 @@ textarea.field-control {
 
   .media-grid img {
     height: 180px;
+  }
+
+  .media-count-1 img {
+    height: auto;
+    max-height: min(70svh, 660px);
+    object-fit: contain;
+  }
+
+  .image-picker {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .image-picker span {
+    text-align: left;
+  }
+
+  .image-preview-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .side-column {

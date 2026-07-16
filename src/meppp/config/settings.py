@@ -212,6 +212,12 @@ DATABASES = {
         },
     }
 }
+TEST_DATABASE_PATH = os.getenv("MEPPP_TEST_DATABASE_PATH", "").strip()
+if TEST_DATABASE_PATH:
+    # LiveServerTestCase serves concurrent browser requests. A real SQLite file
+    # exercises the production connection model; SQLite's shared in-memory test
+    # database can produce cross-thread driver errors under parallel image loads.
+    DATABASES["default"]["TEST"] = {"NAME": TEST_DATABASE_PATH}
 
 AUTH_USER_MODEL = "accounts.User"
 AUTH_PASSWORD_VALIDATORS = [
@@ -230,8 +236,9 @@ STATIC_URL = "/static/"
 STATIC_ROOT = DATA_DIR / "static"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = DATA_DIR / "media"
+MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {"BACKEND": "meppp.publishing.storage.AtomicFileSystemStorage"},
     "staticfiles": {
         "BACKEND": (
             "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -298,8 +305,12 @@ if (
     )
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_MEPPP_PROXY_PROTO", "https")
 
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FILES = 4
+FILE_UPLOAD_PERMISSIONS = 0o600
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
+MEDIA_MIN_FREE_BYTES = env_nonnegative_int("MEPPP_MEDIA_MIN_FREE_BYTES", 256 * 1024 * 1024)
 
 LOG_LEVEL = os.getenv("MEPPP_LOG_LEVEL", "INFO").strip().upper()
 if LOG_LEVEL not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:

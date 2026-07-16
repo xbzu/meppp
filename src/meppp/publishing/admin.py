@@ -66,7 +66,7 @@ class ReadOnlyContentAdminMixin:
 
     @admin.display(description="内容摘要", ordering="body")
     def body_summary(self, obj):
-        return obj.body[:100]
+        return obj.body[:100] or str(obj)
 
 
 @admin.register(Entry)
@@ -188,7 +188,7 @@ class PendingReviewAdminMixin:
 
     @admin.display(description="待审正文", ordering="body")
     def pending_summary(self, obj):
-        return obj.body[:120]
+        return obj.body[:120] or str(obj)
 
     @admin.display(description="提交时间", ordering="created_at")
     def submitted_at(self, obj):
@@ -243,7 +243,7 @@ class PendingCommentAdmin(PendingReviewAdminMixin, admin.ModelAdmin):
 
     @admin.display(description="原内容")
     def entry_summary(self, obj):
-        return obj.entry.body[:70]
+        return obj.entry.body[:70] or str(obj.entry)
 
     def perform_review(self, *, target, actor, outcome, reason):
         return review_comment(comment=target, actor=actor, outcome=outcome, reason=reason)
@@ -274,7 +274,9 @@ class ContentReviewDecisionAdmin(admin.ModelAdmin):
     @admin.display(description="审核对象")
     def target_summary(self, obj):
         target = obj.target
-        return target.body[:100] if target is not None else "（对象不存在）"
+        if target is None:
+            return "（对象不存在）"
+        return target.body[:100] or str(target)
 
     def has_add_permission(self, request):
         return False

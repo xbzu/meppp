@@ -34,7 +34,7 @@ go-postery commit `1bcebf66c70bec6d12f0c2be812984cd69b5de57` (MIT, Copyright 202
 | Member | Public name, bio, counts, public entries, follow state |
 | Login/register | Public member authentication, visible registration entry, fail-closed registration modes |
 | My community | Recipient-only content states, profile/password settings, and author withdrawal |
-| Composer | Text, up to four images with optional alternative text, and up to three existing topics; pending state in pre-moderation mode |
+| Composer | Distinct text, image, video, X source, YouTube source, and topic modes; media-only publishing; provider recognition; pending state in pre-moderation mode |
 | Notifications | Recipient-only follow, like, comment, moderation outcome/reason, and system notices |
 | Report | Private reason/details form bound to a visible user, entry, or comment |
 | Admin | Branded operations dashboard, one-time invitations, dedicated content queues, configuration, and report workflows |
@@ -56,7 +56,7 @@ go-postery commit `1bcebf66c70bec6d12f0c2be812984cd69b5de57` (MIT, Copyright 202
 - Authenticated and authentication responses are private/no-store and vary on cookies.
 - Entry images accept JPG, PNG and WebP input, provide accessible ordered previews, and are served only after server decoding and re-encoding. Empty alternative text is preserved for decorative images rather than replaced with noisy fallback text.
 - Entry videos accept one bounded MP4/WebM input, show a local preview before submission, and use native controls with a generated poster after server validation and remux.
-- X/YouTube imports remain first-party attributed cards. YouTube uses the privacy-enhanced official player only for a verified public source; X never injects provider HTML or scripts.
+- X/YouTube source shares remain first-party attributed cards. YouTube uses the privacy-enhanced official player only for a verified public source; X never injects provider HTML or scripts.
 - Avatar upload remains closed until replacement, retention and moderation behaviour are separately defined.
 
 ## Independent implementation boundary

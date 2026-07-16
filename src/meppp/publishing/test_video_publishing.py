@@ -47,10 +47,10 @@ class VideoPublishingTests(TestCase):
         self.author = User.objects.create_user(username="video-author", password="password")
         SiteConfiguration.objects.create(pk=1)
 
-    def publish(self, *, video=None):
+    def publish(self, *, video=None, body="带安全视频的内容"):
         return publish_entry(
             author=self.author,
-            body="带安全视频的内容",
+            body=body,
             topics=(),
             images=(),
             video=video or processed_video(),
@@ -72,6 +72,27 @@ class VideoPublishingTests(TestCase):
         )
         self.assertEqual(os.stat(asset.file.path).st_mode & 0o777, 0o600)
         self.assertEqual(os.stat(asset.poster.path).st_mode & 0o777, 0o600)
+
+    def test_video_only_entry_may_have_an_empty_body(self):
+        entry = self.publish(body="")
+
+        self.assertEqual(entry.body, "")
+        self.assertTrue(hasattr(entry, "video"))
+
+    def test_latest_configuration_rejects_video_after_uploads_are_disabled(self):
+        configuration = SiteConfiguration.objects.get(pk=1)
+        configuration.video_uploads_enabled = False
+        configuration.save()
+
+        with self.assertRaisesMessage(ValidationError, "关闭了视频上传"):
+            self.publish()
+
+        self.assertEqual(Entry.objects.count(), 0)
+        self.assertEqual(VideoAsset.objects.count(), 0)
+        self.assertEqual(
+            [path for path in Path(self.media_directory.name).rglob("*") if path.is_file()],
+            [],
+        )
 
     def test_webm_uses_the_canonical_webm_extension(self):
         entry = self.publish(video=processed_video(mime_type=VideoMimeType.WEBM))

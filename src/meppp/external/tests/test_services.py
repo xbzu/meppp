@@ -11,6 +11,7 @@ from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
 from meppp.accounts.models import User
+from meppp.configuration.models import SiteConfiguration
 from meppp.publishing.models import Entry
 
 from ..admin import ExternalReferenceAdmin
@@ -48,6 +49,57 @@ class ExternalReferenceServiceTests(TestCase):
         self.assertEqual(reference.external_id, "20")
         self.assertEqual(reference.canonical_url, "https://x.com/i/status/20")
         self.assertEqual(reference.metadata_status, MetadataStatus.PENDING)
+
+    def test_create_rejects_each_provider_disabled_by_the_latest_configuration(self):
+        configuration = SiteConfiguration.objects.create(
+            pk=1,
+            x_references_enabled=False,
+        )
+
+        with self.assertRaisesMessage(ValidationError, "关闭了 X 来源分享"):
+            create_external_reference(
+                entry=self.entry,
+                source_url="https://x.com/i/status/20",
+                refresh=False,
+            )
+
+        configuration.x_references_enabled = True
+        configuration.youtube_references_enabled = False
+        configuration.save()
+        with self.assertRaisesMessage(ValidationError, "关闭了 YouTube 来源分享"):
+            create_external_reference(
+                entry=self.entry,
+                source_url="https://youtu.be/dQw4w9WgXcQ",
+                refresh=False,
+            )
+
+        self.assertFalse(ExternalReference.objects.exists())
+
+    def test_refresh_of_an_existing_reference_ignores_new_creation_switch(self):
+        configuration = SiteConfiguration.objects.create(pk=1)
+        reference = create_external_reference(
+            entry=self.entry,
+            source_url="https://x.com/i/status/20",
+            refresh=False,
+        )
+        configuration.x_references_enabled = False
+        configuration.save()
+        client = _StaticClient(
+            ExternalMetadata(
+                canonical_url="https://x.com/jack/status/20",
+                author_name="jack",
+                author_url="https://x.com/jack",
+                title="",
+                excerpt="still refreshable",
+                expires_after=timedelta(hours=4),
+            )
+        )
+
+        refreshed = refresh_external_reference(reference, client=client)
+
+        self.assertEqual(refreshed.metadata_status, MetadataStatus.READY)
+        self.assertEqual(refreshed.excerpt, "still refreshable")
+        self.assertEqual(len(client.calls), 1)
 
     def test_refresh_stores_only_attribution_and_plain_text_metadata(self):
         reference = create_external_reference(

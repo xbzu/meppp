@@ -6,12 +6,30 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from meppp.configuration.models import SiteConfiguration
+from meppp.configuration.selectors import get_site_configuration
+
 from .models import ExternalReference, MetadataStatus
 from .oembed import ExternalMetadataError, ExternalSourceUnavailable, OEmbedClient
-from .parsing import ParsedExternalURL, parse_external_url
+from .parsing import PROVIDER_X, PROVIDER_YOUTUBE, ParsedExternalURL, parse_external_url
 
 ERROR_RETRY_AFTER = timedelta(minutes=15)
 UNAVAILABLE_RETRY_AFTER = timedelta(hours=6)
+
+
+def _configuration_for_reference_write() -> SiteConfiguration:
+    return (
+        SiteConfiguration.objects.select_for_update().filter(pk=1).first()
+        or get_site_configuration()
+    )
+
+
+def _require_reference_enabled(*, provider: str) -> None:
+    configuration = _configuration_for_reference_write()
+    if provider == PROVIDER_X and not configuration.x_references_enabled:
+        raise ValidationError("管理员当前关闭了 X 来源分享")
+    if provider == PROVIDER_YOUTUBE and not configuration.youtube_references_enabled:
+        raise ValidationError("管理员当前关闭了 YouTube 来源分享")
 
 
 def _parsed_from_reference(reference: ExternalReference) -> ParsedExternalURL:
@@ -103,6 +121,7 @@ def create_external_reference(
         raise ValidationError("外部来源必须关联已保存的内容")
     parsed = parse_external_url(source_url)
     with transaction.atomic():
+        _require_reference_enabled(provider=parsed.provider)
         reference = ExternalReference.objects.select_for_update().filter(entry=entry).first()
         if reference is None:
             reference = ExternalReference(entry=entry)

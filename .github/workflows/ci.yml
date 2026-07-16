@@ -98,6 +98,11 @@ jobs:
       - name: Install Chromium
         run: uv run python -m playwright install --with-deps chromium
 
+      - name: Install video tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+
       - name: Run browser tests
         env:
           MEPPP_TEST_DATABASE_PATH: /tmp/meppp-browser-tests.sqlite3

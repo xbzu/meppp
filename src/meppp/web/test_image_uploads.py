@@ -123,6 +123,88 @@ class MemberImageUploadTests(TestCase):
             str(5 * 1024 * 1024),
         )
 
+    def test_form_hides_media_and_source_fields_disabled_by_site_configuration(self):
+        configuration = SiteConfiguration.objects.get(pk=1)
+        configuration.max_images_per_post = 0
+        configuration.video_uploads_enabled = False
+        configuration.x_references_enabled = False
+        configuration.youtube_references_enabled = False
+
+        form = EntryForm(configuration=configuration)
+
+        self.assertNotIn("images", form.fields)
+        self.assertNotIn("video", form.fields)
+        self.assertNotIn("source_url", form.fields)
+
+    def test_form_rejects_only_the_disabled_external_provider(self):
+        configuration = SiteConfiguration.objects.get(pk=1)
+        configuration.x_references_enabled = False
+        x_form = EntryForm(
+            data={
+                "body": "",
+                "source_url": "https://x.com/i/status/20",
+                "nonce": "x-disabled",
+            },
+            configuration=configuration,
+        )
+        youtube_form = EntryForm(
+            data={
+                "body": "",
+                "source_url": "https://youtu.be/dQw4w9WgXcQ",
+                "nonce": "youtube-enabled",
+            },
+            configuration=configuration,
+        )
+
+        self.assertFalse(x_form.is_valid())
+        self.assertIn("source_url", x_form.errors)
+        self.assertTrue(youtube_form.is_valid(), youtube_form.errors)
+
+        configuration.x_references_enabled = True
+        configuration.youtube_references_enabled = False
+        youtube_form = EntryForm(
+            data={
+                "body": "",
+                "source_url": "https://youtu.be/dQw4w9WgXcQ",
+                "nonce": "youtube-disabled",
+            },
+            configuration=configuration,
+        )
+        x_form = EntryForm(
+            data={
+                "body": "",
+                "source_url": "https://x.com/i/status/20",
+                "nonce": "x-enabled",
+            },
+            configuration=configuration,
+        )
+
+        self.assertFalse(youtube_form.is_valid())
+        self.assertIn("source_url", youtube_form.errors)
+        self.assertTrue(x_form.is_valid(), x_form.errors)
+
+    def test_image_only_and_video_only_forms_allow_an_empty_body(self):
+        configuration = SiteConfiguration.objects.get(pk=1)
+        image_form = EntryForm(
+            data={"body": "", "nonce": "image-only"},
+            files={"images": upload_image()},
+            configuration=configuration,
+        )
+        video_form = EntryForm(
+            data={"body": "", "nonce": "video-only"},
+            files={
+                "video": SimpleUploadedFile(
+                    "clip.mp4",
+                    b"non-empty-video-placeholder",
+                    content_type="video/mp4",
+                )
+            },
+            configuration=configuration,
+        )
+
+        self.assertTrue(image_form.is_valid(), image_form.errors)
+        self.assertTrue(video_form.is_valid(), video_form.errors)
+
     def test_malformed_alt_text_state_fails_closed(self):
         response = self.client.post(
             reverse("web:entry-create"),

@@ -32,7 +32,11 @@ def _rate_limited(request, error: RateLimitExceeded):
 
 @login_required
 def dashboard(request):
-    entries = Entry.objects.filter(author=request.user).prefetch_related("topics")
+    entries = (
+        Entry.objects.filter(author=request.user)
+        .select_related("video", "external_reference")
+        .prefetch_related("topics", "attachments")
+    )
     comments = Comment.objects.filter(author=request.user).select_related("entry")
     entry_page = Paginator(entries, 12).get_page(request.GET.get("entries"))
     comment_page = Paginator(comments, 12).get_page(request.GET.get("comments"))

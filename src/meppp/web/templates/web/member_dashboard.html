@@ -36,7 +36,7 @@
                   <span class="content-state content-state-{{ entry.state }}">{% if entry.state == 'deleted' %}已撤回{% else %}{{ entry.get_state_display }}{% endif %}</span>
                   <time datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:'Y.m.d H:i' }}</time>
                 </div>
-                <p>{{ entry.body|truncatechars:180|linebreaksbr }}</p>
+                <p>{% if entry.body %}{{ entry.body|truncatechars:180|linebreaksbr }}{% elif entry.attachments.all %}图片动态{% elif entry.video %}视频动态{% else %}来源动态{% endif %}</p>
                 <div class="record-actions">
                   {% if entry.state == 'published' %}<a href="{% url 'web:entry-detail' entry.public_id %}">查看公开内容</a>{% endif %}
                   {% if entry.state == 'pending' %}<span>管理员审核后会通知你。</span>{% endif %}

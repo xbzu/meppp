@@ -46,10 +46,10 @@ class ImagePublishingTests(TestCase):
         self.other = User.objects.create_user(username="other", password="password")
         SiteConfiguration.objects.create(pk=1)
 
-    def publish(self, *, token="nonce-1", images=None):
+    def publish(self, *, token="nonce-1", images=None, body="带安全图片的内容"):
         return publish_entry_once(
             author=self.author,
-            body="带安全图片的内容",
+            body=body,
             topics=(),
             purpose="entry:create",
             token=token,
@@ -70,6 +70,12 @@ class ImagePublishingTests(TestCase):
         self.assertNotIn("private", attachment.file.name)
         self.assertEqual(os.stat(attachment.file.path).st_mode & 0o777, 0o600)
         self.assertEqual(os.stat(Path(attachment.file.path).parent).st_mode & 0o777, 0o700)
+
+    def test_image_only_entry_may_have_an_empty_body(self):
+        entry = self.publish(body="")
+
+        self.assertEqual(entry.body, "")
+        self.assertEqual(entry.attachments.count(), 1)
 
     def test_duplicate_nonce_creates_one_entry_and_one_file(self):
         self.publish(token="same")

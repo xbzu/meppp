@@ -1,11 +1,11 @@
-<fieldset class="image-composer{% if field.errors %} has-error{% endif %}" data-image-composer>
+<fieldset id="composer-images" class="image-composer{% if field.errors %} has-error{% endif %}" data-image-composer data-composer-panel="image">
   <legend>{{ field.label }}</legend>
   <p id="image-help" class="field-help">
     JPG、PNG 或 WebP；每张不超过 {{ form.maximum_image_bytes|filesizeformat }}；最多 {{ form.maximum_images }} 张。
     图片只是装饰时，替代文本可以留空；上传即表示你拥有或已获授权使用它。
   </p>
   {{ field }}
-  <label class="image-picker" for="{{ field.id_for_label }}" data-image-picker>
+  <label class="image-picker" for="{{ field.id_for_label }}" data-image-picker tabindex="0">
     <strong>选择图片</strong>
     <span>图片会在服务器安全处理后统一保存</span>
   </label>

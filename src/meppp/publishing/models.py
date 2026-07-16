@@ -39,7 +39,10 @@ class Entry(PublicModel):
         on_delete=models.PROTECT,
         related_name="entries",
     )
-    body = models.TextField(validators=[MinLengthValidator(1), MaxLengthValidator(5_000)])
+    body = models.TextField(
+        blank=True,
+        validators=[MinLengthValidator(1), MaxLengthValidator(5_000)],
+    )
     state = models.CharField(
         max_length=12,
         choices=ContentState,
@@ -60,7 +63,7 @@ class Entry(PublicModel):
         ]
 
     def __str__(self) -> str:
-        return self.body[:60]
+        return self.body[:60] or f"媒体动态 {self.public_id}"
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Entries must use lifecycle states, not physical deletion")

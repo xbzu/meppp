@@ -150,9 +150,13 @@ def create_entry_records(
 ) -> Entry:
     _require_active_member(author)
     configuration = _configuration_for_write()
-    body = _clean_body(value=body, maximum=configuration.post_max_length, label="正文")
     topics = list(topics)
     images = list(images)
+    body = body.strip()
+    if len(body) > configuration.post_max_length:
+        raise ValidationError(f"正文不能超过 {configuration.post_max_length} 个字符")
+    if not body and not images and video is None:
+        raise ValidationError("正文不能为空")
     if len(topics) > 3:
         raise ValidationError("每条内容最多选择 3 个话题")
     maximum_images = min(configuration.max_images_per_post, MAX_IMAGES_PER_POST)
@@ -165,6 +169,8 @@ def create_entry_records(
         if image.source_byte_size > maximum_image_bytes or image.byte_size > maximum_image_bytes:
             raise ValidationError("图片大小超过当前站点限制")
     if video is not None:
+        if not configuration.video_uploads_enabled:
+            raise ValidationError("管理员当前关闭了视频上传")
         if not isinstance(video, ProcessedVideo):
             raise ValidationError("视频尚未完成安全处理")
         if (

@@ -23,8 +23,10 @@
     {% include 'web/_image_upload.html' with field=field form=form only %}
   {% elif field.name == 'video' %}
     {% include 'web/_video_upload.html' with field=field only %}
+  {% elif field.name == 'source_url' %}
+    {% include 'web/_source_share.html' with field=field x_enabled=form.configuration.x_references_enabled youtube_enabled=form.configuration.youtube_references_enabled only %}
   {% else %}
-    <div class="form-field{% if field.errors %} has-error{% endif %}">
+    <div class="form-field{% if field.errors %} has-error{% endif %}"{% if field.name == 'body' %} id="composer-body"{% elif field.name == 'topics' %} id="composer-topics" data-composer-panel="topics"{% endif %}>
       <label for="{{ field.id_for_label }}">{{ field.label }}</label>
       {{ field }}
       {% if field.help_text %}<div class="field-help">{{ field.help_text|safe }}</div>{% endif %}

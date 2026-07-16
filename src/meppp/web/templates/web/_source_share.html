@@ -1,0 +1,13 @@
+<fieldset id="composer-source" class="source-composer{% if field.errors %} has-error{% endif %}" data-source-composer data-composer-panel="source">
+  <legend>{{ field.label }}</legend>
+  <div class="source-platforms" aria-label="当前可分享的来源平台">
+    {% if x_enabled %}<span class="source-platform source-platform-x">X Post</span>{% endif %}
+    {% if youtube_enabled %}<span class="source-platform source-platform-youtube">YouTube 视频</span>{% endif %}
+  </div>
+  <label class="sr-only" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  <p class="source-status" role="status" aria-live="polite" data-source-status>粘贴公开链接后会自动识别平台。</p>
+  {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+  <p class="source-boundary">来源卡片与本地图片、视频不能放在同一条动态中；自己拥有的媒体请使用上面的上传入口。</p>
+  {% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}
+</fieldset>

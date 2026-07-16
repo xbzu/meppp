@@ -31,7 +31,7 @@ class PublicSecurityHeadersMiddleware:
                 "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; "
                 "script-src 'self' https://static.cloudflareinsights.com/beacon.min.js "
                 "https://static.cloudflareinsights.com/beacon.min.js/; "
-                "font-src 'self'; connect-src 'self'; "
+                "font-src 'self'; connect-src 'self'; media-src 'self' blob:; "
                 "frame-src https://www.youtube-nocookie.com; object-src 'none'; "
                 "base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
             )

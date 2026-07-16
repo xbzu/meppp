@@ -105,6 +105,7 @@ class PublicReadTests(WebTestCase):
             content_security_policy,
         )
         self.assertIn("connect-src 'self'", content_security_policy)
+        self.assertIn("media-src 'self' blob:", content_security_policy)
         self.assertNotIn("'unsafe-inline'", content_security_policy)
         self.assertNotIn("*.cloudflareinsights.com", content_security_policy)
         self.assertNotIn("no-transform", response.headers.get("Cache-Control", ""))

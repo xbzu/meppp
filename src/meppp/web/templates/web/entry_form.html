@@ -6,8 +6,8 @@
       <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回动态</a>
       <p class="eyebrow">NEW PUBLIC NOTE</p>
       <h1 id="composer-title">写一条值得留下的内容</h1>
-      <p class="form-lead">首版先把文字表达和讨论做稳。图片入口会在完成安全解码与重编码后开放。</p>
-      <form method="post" class="stacked-form" novalidate>
+      <p class="form-lead">文字是主体，图片负责补充现场和细节。上传后的图片会移除设备信息并统一安全处理。</p>
+      <form method="post" enctype="multipart/form-data" class="stacked-form" novalidate>
         {% csrf_token %}
         {% include 'web/_form_fields.html' with form=form only %}
         <div class="composer-meta">

@@ -1,13 +1,13 @@
 # Production operations
 
-MEPPP runs as one non-root application container behind an existing host Nginx. The production shape intentionally stays small: one Gunicorn process, four threads, one local `/data` mount, and no Redis, queue, search, or database service. `deploy/README.md` contains the aaPanel/Nginx/Cloudflare packet.
+MEPPP runs as one non-root application container behind an existing host Nginx. The production shape intentionally stays small: one Gunicorn process, two threads, one local `/data` mount, and no Redis, queue, search, or database service. `deploy/README.md` contains the aaPanel/Nginx/Cloudflare packet.
 
 This repository does not change a server, DNS record, Cloudflare zone, or aaPanel configuration by itself.
 
 ## Runtime safety boundary
 
 - The container uses fixed UID/GID `10001:10001`, drops every Linux capability, enables `no-new-privileges`, and has a read-only root filesystem.
-- Only `/data` and a 64 MiB `noexec` temporary filesystem are writable.
+- Only `/data` and a 96 MiB `noexec` temporary filesystem are writable.
 - The service is published only on host loopback, default `127.0.0.1:18080`.
 - CPU, memory, PID, and JSON log rotation limits protect the shared host.
 - A fixed private bridge makes the immediate proxy address deterministic. If its subnet collides, all network values and `MEPPP_TRUSTED_PROXY_IPS` must change together.
@@ -78,19 +78,32 @@ docker compose exec -T app python manage.py backup_sqlite
 
 The entrypoint runs the same verified backup automatically before migrations whenever an existing database is present. That protects upgrades, but it does not replace the scheduled daily job.
 
-Configure an aaPanel daily task using `deploy/cron/meppp-backup.sh`. It creates the online backup, runs a non-destructive restore drill, refuses a destination on the same filesystem, copies both `*.sqlite3` and matching manifests to an already-mounted independent disk, and verifies every copied checksum. Example aaPanel shell task:
+Configure an aaPanel daily task using `deploy/cron/meppp-backup.sh`. It creates the online backup, runs a non-destructive restore drill, verifies every attachment against that database snapshot, refuses a destination on the same filesystem, incrementally copies immutable WebP media plus the database to an already-mounted independent disk, and verifies database and media checksums. Example aaPanel shell task:
 
 ```bash
 cd /opt/meppp && \
 MEPPP_APP_DIR=/opt/meppp \
-MEPPP_HOST_BACKUP_DIR=/srv/meppp/data/backups/sqlite \
+MEPPP_HOST_DATA_DIR=/srv/meppp/data \
 MEPPP_OFFSITE_DIR=/www/backup/meppp.com \
 sh ./deploy/cron/meppp-backup.sh
 ```
 
 Schedule it once daily after the independent disk is mounted and monitored. The template intentionally fails instead of silently copying to the source filesystem. A backup inside the same `/data` filesystem is not disaster recovery. For a remote object store or backup host, keep the local verified-copy gate and add the provider's separately authenticated transfer after it; do not put those credentials in `.env` or this repository.
 
-The current product keeps public uploads closed. If media uploads are enabled later, add a point-in-time media archive and manifest to the same off-host job; database backup alone will then be incomplete.
+Database backup alone is incomplete once an entry has images. Submitted media is immutable even after moderation or author withdrawal, so the scheduled job keeps a non-destructive media superset and a snapshot-specific SHA-256 manifest. It never uses `--delete`. Before any disaster recovery on a fresh host, restore the verified media mirror into `/data/media`, then restore the selected database and run:
+
+```bash
+docker compose exec -T app python manage.py verify_media \
+  --database /data/restore-staging/REPLACE/restored.sqlite3 \
+  --media-root /data/media
+```
+
+Old unreferenced crash-window files are reported, not deleted, by default. Review the output before the explicit cleanup form:
+
+```bash
+docker compose exec -T app python manage.py reconcile_media
+docker compose exec -T app python manage.py reconcile_media --delete --minimum-age-hours 24
+```
 
 SQLite must stay on a local filesystem, never NFS, a synchronized drive, or an object-store mount. Multiple replicas, sustained write contention, or queue-heavy workloads trigger a planned PostgreSQL migration.
 
@@ -135,11 +148,12 @@ If any post-cutover check fails, stop the app, move the failed restored database
 For every upgrade:
 
 1. Run the online backup command and a restore drill; retain their output.
-2. Record `docker compose images` and the current `MEPPP_IMAGE` value.
-3. Build the new source as a new immutable tag and update `MEPPP_IMAGE` in `.env`.
-4. Run `docker compose config --quiet`.
-5. Start only the application service and wait for healthy status. Startup migrates the database, reconciles managed role permissions, and collects static assets before Gunicorn starts.
-6. Test health, homepage, login, admin Basic Auth, and a staff moderation path before opening traffic.
+2. Before upgrading from a release older than secure-media migration `0005`, run `docker compose exec -T app python manage.py shell -c 'from meppp.publishing.models import Attachment; print(Attachment.objects.count())'`. The result must be exactly `0`. Stop if it is not: old attachments were not guaranteed to be safely re-encoded, so migration deliberately preserves and blocks them instead of silently trusting or deleting them.
+3. Record `docker compose images` and the current `MEPPP_IMAGE` value.
+4. Build the new source as a new immutable tag and update `MEPPP_IMAGE` in `.env`.
+5. Run `docker compose config --quiet`.
+6. Start only the application service and wait for healthy status. Startup migrates the database, clamps any historical image configuration above the 4-image/5-MiB hard caps with a configuration revision, reconciles managed role permissions, and collects static assets before Gunicorn starts.
+7. Test health, homepage, login, admin Basic Auth, and a staff moderation path before opening traffic.
 
 Do not overwrite or delete the prior image during the release window. If code fails before a migration changes data, restore the prior `MEPPP_IMAGE` value and recreate the service. If a migration or application write changed data incompatibly, use the attended staged-recovery procedure above, restore the prior image tag, and then start. Never attempt schema rollback by copying a live SQLite file.
 
@@ -153,6 +167,6 @@ Only after origin TLS, container health, Nginx configuration, admin protection, 
 
 - Application logs go to standard output and are rotated by Docker (`10m` × `5` by default).
 - Nginx keeps separate access and warning-level error logs for `meppp.com`.
-- `/health/live` proves the process responds; `/health/ready` also proves a database query. The Nginx template restricts both to origin-local requests.
+- `/health/live` proves the process responds; `/health/ready` also proves a database query, a readable/writable media directory, and the configured free-space floor (256 MiB by default). The Nginx template restricts both to origin-local requests.
 - A healthy probe is not proof that login, posting, moderation, backup, or restore works. Keep those checks in the release checklist.
 - On failure, preserve the image tag, `.env` backup, Nginx backup, selected database manifest, command output, and the shortest rollback action. Do not repeatedly restart or resubmit changes without identifying the failed gate.

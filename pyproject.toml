@@ -8,6 +8,7 @@ license = "MIT"
 authors = [{ name = "xbzu" }]
 dependencies = [
   "Django>=5.2.16,<5.3",
+  "Pillow>=12.3,<13",
   "gunicorn>=23,<24",
   "whitenoise>=6.9,<7",
 ]

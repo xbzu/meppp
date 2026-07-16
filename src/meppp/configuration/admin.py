@@ -34,8 +34,8 @@ class SiteConfigurationAdminForm(forms.ModelForm):
             "comments_enabled": "开放评论",
         }
         help_texts = {
-            "max_images_per_post": "图片入口当前保持关闭；此值为后续安全图片流程预留。",
-            "upload_max_bytes": "图片入口当前保持关闭；启用前还会执行解码与像素校验。",
+            "max_images_per_post": "可在 0 到 4 张之间调整；设为 0 会关闭内容配图。",
+            "upload_max_bytes": "单张原图和安全处理后的 WebP 都必须小于此值，硬上限为 5 MB。",
         }
 
 

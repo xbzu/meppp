@@ -43,6 +43,9 @@ jobs:
           uv run python manage.py makemigrations --check --dry-run
           uv run python manage.py check
 
+      - name: Verify image codec
+        run: uv run python -c 'from PIL import features; assert features.check("webp"), "Pillow WebP support is required"'
+
       - name: Run tests with coverage
         run: |
           uv run coverage run manage.py test meppp
@@ -86,6 +89,8 @@ jobs:
         run: uv run python -m playwright install --with-deps chromium
 
       - name: Run browser tests
+        env:
+          MEPPP_TEST_DATABASE_PATH: /tmp/meppp-browser-tests.sqlite3
         run: uv run python manage.py test tests.browser -v 2
 
       - name: Upload browser evidence on failure
@@ -134,6 +139,8 @@ jobs:
             'from django.conf import settings; assert settings.SECURE_HSTS_SECONDS == 3600; assert not settings.SECURE_HSTS_INCLUDE_SUBDOMAINS; assert not settings.SECURE_HSTS_PRELOAD'
           docker exec "$container_id" python manage.py shell -c \
             'from django.contrib.auth.models import Group; assert set(Group.objects.values_list("name", flat=True)) == {"运营", "审核"}'
+          docker exec "$container_id" python -c \
+            'from PIL import features; assert features.check("webp"), "Pillow WebP support is required"'
           curl --fail --silent --header 'Host: meppp.com' \
             http://127.0.0.1:18080/health/ready
           curl --fail --silent --output /tmp/meppp-homepage.html \

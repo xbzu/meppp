@@ -1,19 +1,28 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from meppp.audit.services import record_event
-from meppp.configuration.models import ModerationMode, SiteConfiguration
+from meppp.configuration.models import (
+    MAX_IMAGE_UPLOAD_BYTES,
+    MAX_IMAGES_PER_POST,
+    ModerationMode,
+    SiteConfiguration,
+)
 from meppp.configuration.selectors import get_site_configuration
 from meppp.notifications.models import NotificationKind
 from meppp.notifications.services import notify
 
+from .image_processing import ProcessedImage
 from .models import (
+    Attachment,
     Comment,
     ContentReviewDecision,
     ContentReviewOutcome,
@@ -23,6 +32,7 @@ from .models import (
 )
 
 MAX_CONTENT_REVIEW_REASON_LENGTH = 500
+logger = logging.getLogger(__name__)
 
 
 def _require_active_member(member) -> None:
@@ -46,14 +56,41 @@ def _configuration_for_write() -> SiteConfiguration:
     )
 
 
-@transaction.atomic
-def publish_entry(*, author, body: str, topics: Iterable[Topic] = ()) -> Entry:
+def cleanup_stored_files(stored_files: list[tuple]) -> None:
+    cleanup_failures = 0
+    for storage, name in reversed(stored_files):
+        try:
+            storage.delete(name)
+        except Exception:  # pragma: no cover - storage-specific last-resort path
+            cleanup_failures += 1
+    if cleanup_failures:
+        logger.error("media cleanup failed for %d generated file(s)", cleanup_failures)
+
+
+def create_entry_records(
+    *,
+    author,
+    body: str,
+    topics: Iterable[Topic] = (),
+    images: Iterable[ProcessedImage] = (),
+    stored_files: list[tuple],
+) -> Entry:
     _require_active_member(author)
     configuration = _configuration_for_write()
     body = _clean_body(value=body, maximum=configuration.post_max_length, label="正文")
     topics = list(topics)
+    images = list(images)
     if len(topics) > 3:
         raise ValidationError("每条内容最多选择 3 个话题")
+    maximum_images = min(configuration.max_images_per_post, MAX_IMAGES_PER_POST)
+    maximum_image_bytes = min(configuration.upload_max_bytes, MAX_IMAGE_UPLOAD_BYTES)
+    if len(images) > maximum_images:
+        raise ValidationError("图片数量超过当前站点限制")
+    for image in images:
+        if not isinstance(image, ProcessedImage):
+            raise ValidationError("图片尚未完成安全处理")
+        if image.source_byte_size > maximum_image_bytes or image.byte_size > maximum_image_bytes:
+            raise ValidationError("图片大小超过当前站点限制")
 
     state = (
         ContentState.PENDING
@@ -65,7 +102,44 @@ def publish_entry(*, author, body: str, topics: Iterable[Topic] = ()) -> Entry:
     entry.save()
     if topics:
         entry.topics.set(topics)
+    for position, image in enumerate(images):
+        attachment = Attachment(
+            entry=entry,
+            mime_type=image.mime_type,
+            byte_size=image.byte_size,
+            alt_text=image.alt_text,
+            width=image.width,
+            height=image.height,
+            position=position,
+        )
+        attachment.file.save("image.webp", ContentFile(image.content), save=False)
+        stored_files.append((attachment.file.storage, attachment.file.name))
+        attachment.full_clean()
+        attachment.save()
     return entry
+
+
+def publish_entry(
+    *,
+    author,
+    body: str,
+    topics: Iterable[Topic] = (),
+    images: Iterable[ProcessedImage] = (),
+) -> Entry:
+    stored_files: list[tuple] = []
+    try:
+        with transaction.atomic():
+            entry = create_entry_records(
+                author=author,
+                body=body,
+                topics=topics,
+                images=images,
+                stored_files=stored_files,
+            )
+        return entry
+    except BaseException:
+        cleanup_stored_files(stored_files)
+        raise
 
 
 @transaction.atomic

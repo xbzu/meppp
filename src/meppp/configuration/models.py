@@ -4,6 +4,9 @@ from django.db import models
 
 from meppp.common.models import AppendOnlyPublicModel, TimeStampedModel
 
+MAX_IMAGES_PER_POST = 4
+MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024
+
 
 class RegistrationMode(models.TextChoices):
     OPEN = "open", "开放注册"
@@ -35,12 +38,12 @@ class SiteConfiguration(TimeStampedModel):
         validators=[MinValueValidator(20), MaxValueValidator(2_000)],
     )
     max_images_per_post = models.PositiveSmallIntegerField(
-        default=4,
-        validators=[MinValueValidator(0), MaxValueValidator(4)],
+        default=MAX_IMAGES_PER_POST,
+        validators=[MinValueValidator(0), MaxValueValidator(MAX_IMAGES_PER_POST)],
     )
     upload_max_bytes = models.PositiveIntegerField(
-        default=5 * 1024 * 1024,
-        validators=[MinValueValidator(128 * 1024), MaxValueValidator(20 * 1024 * 1024)],
+        default=MAX_IMAGE_UPLOAD_BYTES,
+        validators=[MinValueValidator(128 * 1024), MaxValueValidator(MAX_IMAGE_UPLOAD_BYTES)],
     )
     moderation_mode = models.CharField(
         max_length=10,
@@ -52,6 +55,16 @@ class SiteConfiguration(TimeStampedModel):
     class Meta:
         verbose_name = "站点配置"
         verbose_name_plural = "站点配置"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(max_images_per_post__lte=MAX_IMAGES_PER_POST),
+                name="configuration_image_count_hard_cap",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(upload_max_bytes__lte=MAX_IMAGE_UPLOAD_BYTES),
+                name="configuration_image_bytes_hard_cap",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         self.pk = 1

@@ -37,7 +37,7 @@ server {
 
     access_log /www/wwwlogs/meppp.com.log;
     error_log /www/wwwlogs/meppp.com.error.log warn;
-    client_max_body_size 10m;
+    client_max_body_size 24m;
 
     location = /health/live {
         allow 127.0.0.1;

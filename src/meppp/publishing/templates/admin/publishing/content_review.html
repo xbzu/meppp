@@ -39,6 +39,16 @@
         {% endif %}
       </dl>
       <div class="review-body">{{ target.body|linebreaksbr }}</div>
+      {% if not is_comment and target.attachments.all %}
+        <div class="review-media-grid" aria-label="待审内容配图">
+          {% for attachment in target.attachments.all %}
+            <figure>
+              <img src="{% url 'web:attachment-file' attachment.public_id %}" alt="{{ attachment.alt_text }}" width="{{ attachment.width }}" height="{{ attachment.height }}">
+              {% if attachment.alt_text %}<figcaption>{{ attachment.alt_text }}</figcaption>{% endif %}
+            </figure>
+          {% endfor %}
+        </div>
+      {% endif %}
     </section>
 
     <form method="post" class="review-decision-form" novalidate>

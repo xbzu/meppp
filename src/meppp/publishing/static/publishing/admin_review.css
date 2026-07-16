@@ -170,19 +170,49 @@
   box-sizing: border-box;
 }
 
+.review-media-grid {
+  display: grid;
+  padding: 0 24px 24px;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.review-media-grid figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.review-media-grid img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  border-radius: 6px;
+  background: var(--body-bg);
+  object-fit: contain;
+}
+
+.review-media-grid figcaption {
+  padding-top: 7px;
+  color: var(--body-quiet-color);
+  font-size: 12px;
+}
+
 @media (max-width: 767px) {
   .review-section-heading,
   .review-metadata,
   .review-body,
   .review-warning,
   .review-field,
-  .review-confirm {
+  .review-confirm,
+  .review-media-grid {
     padding-right: 15px;
     padding-left: 15px;
   }
 
   .review-metadata,
-  #id_outcome {
+  #id_outcome,
+  .review-media-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

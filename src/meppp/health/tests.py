@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.db import DatabaseError
@@ -48,3 +49,22 @@ class HealthViewTests(TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json(), {"status": "unavailable"})
         self.assertNotContains(response, "sensitive database failure", status_code=503)
+
+    @patch("meppp.health.views.os.access", return_value=False)
+    def test_ready_returns_503_when_media_directory_is_not_writable(self, _access):
+        with self.assertLogs("django.request", level="ERROR"):
+            response = self.client.get(reverse("health:ready"))
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {"status": "unavailable"})
+
+    @patch(
+        "meppp.health.views.shutil.disk_usage",
+        return_value=SimpleNamespace(free=0),
+    )
+    def test_ready_returns_503_when_media_free_space_is_below_floor(self, _disk_usage):
+        with self.assertLogs("django.request", level="ERROR"):
+            response = self.client.get(reverse("health:ready"))
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {"status": "unavailable"})

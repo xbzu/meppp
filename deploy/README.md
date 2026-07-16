@@ -19,7 +19,7 @@ Recommended host paths:
 
 ```text
 /opt/meppp/                        repository checkout and Compose project
-/srv/meppp/data/                   SQLite, generated static files, backup manifests
+/srv/meppp/data/                   SQLite, private media, generated static files, backup manifests
 /www/backup/meppp.com/             independently mounted backup copy
 /www/wwwroot/meppp.com/            ACME challenge/aaPanel placeholder only
 ```
@@ -111,14 +111,14 @@ No DNS or Cloudflare setting is automated by this repository.
 
 ## Daily backup task
 
-Mount an independent backup disk, then create an aaPanel daily shell task from `deploy/cron/meppp-backup.sh`. The task fails if source and destination have the same filesystem device, performs an online SQLite backup, runs a fresh-path restore drill, copies the database and SHA-256 manifest, and verifies the independent copy. Example:
+Mount an independent backup disk, then create an aaPanel daily shell task from `deploy/cron/meppp-backup.sh`. The task fails if source and destination have the same filesystem device or media contains a symbolic link, performs an online SQLite backup, runs a fresh-path restore drill, verifies all attachment files against the snapshot, incrementally copies immutable media plus the database, and verifies both SHA-256 manifests. Example:
 
 ```bash
 cd /opt/meppp && \
 MEPPP_APP_DIR=/opt/meppp \
-MEPPP_HOST_BACKUP_DIR=/srv/meppp/data/backups/sqlite \
+MEPPP_HOST_DATA_DIR=/srv/meppp/data \
 MEPPP_OFFSITE_DIR=/www/backup/meppp.com \
 sh ./deploy/cron/meppp-backup.sh
 ```
 
-Do not schedule the task until the destination mount and its monitoring are proven. See `docs/OPERATIONS.md` for retention, restore drills, and attended recovery.
+The Nginx template intentionally has no public `/media/` alias. Images pass through the state-aware application route so pending, hidden, withdrawn, or inactive-author media cannot be fetched directly. Do not schedule the backup task until the destination mount and its monitoring are proven. See `docs/OPERATIONS.md` for retention, media reconciliation, restore drills, and attended recovery.

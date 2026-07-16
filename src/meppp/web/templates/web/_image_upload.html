@@ -1,0 +1,15 @@
+<fieldset class="image-composer{% if field.errors %} has-error{% endif %}" data-image-composer>
+  <legend>{{ field.label }}</legend>
+  <p id="image-help" class="field-help">
+    JPG、PNG 或 WebP；每张不超过 {{ form.maximum_image_bytes|filesizeformat }}；最多 {{ form.maximum_images }} 张。
+    图片只是装饰时，替代文本可以留空。
+  </p>
+  {{ field }}
+  <label class="image-picker" for="{{ field.id_for_label }}" data-image-picker>
+    <strong>选择图片</strong>
+    <span>图片会在服务器安全处理后统一保存</span>
+  </label>
+  <p id="image-status" class="image-status" role="status" aria-live="polite" data-image-status>还没有选择图片</p>
+  {% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}
+  <div class="image-preview-list" data-image-preview-list></div>
+</fieldset>

@@ -10,8 +10,8 @@ MEPPP is a lightweight community product. Its first complete milestone is a smal
 - Implemented: post-moderation publishing plus dedicated pending-entry and pending-comment queues for pre-moderation. Every decision requires a reason, is append-only, and notifies the author.
 - Implemented: a permission-aware operations dashboard and idempotent code-defined `运营` and `审核` groups. The owner remains a Django superuser rather than a second role system.
 - Implemented: responsive desktop/mobile templates, keyboard focus, security headers, CSRF, same-origin redirects, form idempotency, and account/IP rate limits.
-- Deliberately closed: member avatar and attachment uploads. Extension checks are not treated as a safe image pipeline.
-- Still planned for the target MVP: decoded/re-encoded image uploads with dimensions, size limits, alternative text, transactional cleanup, and dedicated abuse tests.
+- Implemented: up to four decoded, metadata-stripped, resized and server-re-encoded WebP images per entry, with alternative text, compensating file cleanup, state-aware delivery, abuse tests and media backup verification.
+- Deliberately closed: member avatar uploads. They will reuse the proven image processor only after the profile replacement and retention lifecycle is defined.
 
 ## MVP loop
 
@@ -36,7 +36,7 @@ MEPPP is a lightweight community product. Its first complete milestone is a smal
 ## Deliberately deferred
 
 - Private messaging, real-time chat, WebSockets, and push notifications
-- Video, audio, arbitrary files, transcoding, and CDN integration
+- Video, audio, arbitrary files, video transcoding, and CDN integration
 - Wallets, payments, paid attachments, and revenue sharing
 - Redis, job queues, external search engines, and event buses
 - Multiple databases and multiple object-storage providers

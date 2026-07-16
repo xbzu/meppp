@@ -1,6 +1,3 @@
-import uuid
-from pathlib import Path
-
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator, MaxLengthValidator, MinLengthValidator
@@ -224,24 +221,40 @@ class EntryTopic(models.Model):
 
 
 def attachment_upload_path(instance, filename: str) -> str:
-    extension = Path(filename).suffix.lower()
-    return f"entries/{instance.entry.public_id}/{uuid.uuid4().hex}{extension}"
+    del filename
+    return f"entries/{instance.entry.public_id}/{instance.public_id}.webp"
+
+
+class AttachmentQuerySet(models.QuerySet):
+    def delete(self):
+        raise ValidationError("Attachments must follow the entry lifecycle")
+
+    def _raw_delete(self, using):
+        raise ValidationError("Attachments must follow the entry lifecycle")
 
 
 class Attachment(PublicModel):
     entry = models.ForeignKey(Entry, on_delete=models.CASCADE, related_name="attachments")
     file = models.FileField(
         upload_to=attachment_upload_path,
-        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"])],
+        validators=[FileExtensionValidator(["webp"])],
     )
-    mime_type = models.CharField(max_length=80)
-    byte_size = models.PositiveIntegerField()
+    mime_type = models.CharField(
+        max_length=10,
+        choices=(("image/webp", "WebP"),),
+        default="image/webp",
+        editable=False,
+    )
+    byte_size = models.PositiveIntegerField(editable=False)
     alt_text = models.CharField(max_length=240, blank=True)
-    width = models.PositiveIntegerField(null=True, blank=True)
-    height = models.PositiveIntegerField(null=True, blank=True)
-    position = models.PositiveSmallIntegerField(default=0)
+    width = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    height = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    position = models.PositiveSmallIntegerField(default=0, editable=False)
+
+    objects = AttachmentQuerySet.as_manager()
 
     class Meta:
+        base_manager_name = "objects"
         ordering = ["position", "created_at"]
         verbose_name = "图片附件"
         verbose_name_plural = "图片附件"
@@ -258,7 +271,26 @@ class Attachment(PublicModel):
                 condition=models.Q(byte_size__gt=0),
                 name="publishing_attachment_size_positive",
             ),
+            models.CheckConstraint(
+                condition=models.Q(mime_type="image/webp"),
+                name="publishing_attachment_mime_webp",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(width__isnull=False, width__gt=0),
+                name="publishing_attachment_width_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(height__isnull=False, height__gt=0),
+                name="publishing_attachment_height_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(file__endswith=".webp"),
+                name="publishing_attachment_file_webp",
+            ),
         ]
 
     def __str__(self) -> str:
         return f"{self.entry_id}:{self.position}"
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Attachments must follow the entry lifecycle")

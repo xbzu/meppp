@@ -213,7 +213,9 @@ class PendingEntryAdmin(PendingReviewAdminMixin, admin.ModelAdmin):
     target_label = "内容"
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("author")
+        return (
+            super().get_queryset(request).select_related("author").prefetch_related("attachments")
+        )
 
     def perform_review(self, *, target, actor, outcome, reason):
         return review_entry(entry=target, actor=actor, outcome=outcome, reason=reason)

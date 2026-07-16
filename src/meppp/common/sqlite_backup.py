@@ -6,6 +6,7 @@ import os
 import re
 import sqlite3
 import tempfile
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -88,7 +89,7 @@ def sha256_file(path: Path) -> str:
 
 def assert_integrity(path: Path) -> None:
     try:
-        with _readonly_connection(path, immutable=True) as connection:
+        with closing(_readonly_connection(path, immutable=True)) as connection:
             rows = connection.execute("PRAGMA integrity_check").fetchall()
     except sqlite3.Error as error:
         raise SQLiteBackupError(f"SQLite integrity check could not run for {path}") from error
@@ -233,8 +234,8 @@ def backup_database(
     temporary_path = Path(temporary_name)
     try:
         with (
-            _readonly_connection(database_path) as source,
-            sqlite3.connect(temporary_path) as destination,
+            closing(_readonly_connection(database_path)) as source,
+            closing(sqlite3.connect(temporary_path)) as destination,
         ):
             source.backup(destination, pages=256, sleep=0.05)
             _make_single_file_database(destination)
@@ -277,8 +278,8 @@ def restore_to_new_path(
     assert_integrity(backup_path)
     try:
         with (
-            _readonly_connection(backup_path, immutable=True) as source,
-            sqlite3.connect(destination) as target,
+            closing(_readonly_connection(backup_path, immutable=True)) as source,
+            closing(sqlite3.connect(destination)) as target,
         ):
             source.backup(target, pages=256, sleep=0.05)
             _make_single_file_database(target)

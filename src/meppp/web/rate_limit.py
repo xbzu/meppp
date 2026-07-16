@@ -63,11 +63,11 @@ def client_ip(request) -> str | None:
 
     forwarded_value = request.META.get("HTTP_X_REAL_IP", "").strip()
     if not forwarded_value or "," in forwarded_value:
-        return None
+        return remote_address.compressed
     try:
         return ip_address(forwarded_value).compressed
     except ValueError:
-        return None
+        return remote_address.compressed
 
 
 def enforce_rate_limit(request, *, scope: str, identity: str | None = None) -> None:

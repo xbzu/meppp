@@ -1,0 +1,119 @@
+# aaPanel site template for meppp.com.
+# Replace certificate paths only if aaPanel uses a different site certificate directory.
+
+limit_req_zone $binary_remote_addr zone=meppp_public:10m rate=15r/s;
+limit_req_zone $binary_remote_addr zone=meppp_auth:10m rate=5r/m;
+limit_req_zone $binary_remote_addr zone=meppp_admin:10m rate=2r/s;
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name meppp.com www.meppp.com;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /www/wwwroot/meppp.com;
+    }
+
+    location / {
+        return 301 https://meppp.com$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name meppp.com www.meppp.com;
+
+    ssl_certificate /www/server/panel/vhost/cert/meppp.com/fullchain.pem;
+    ssl_certificate_key /www/server/panel/vhost/cert/meppp.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:MEPPP_SSL:10m;
+    ssl_session_timeout 1d;
+
+    # The target aaPanel host already defines Cloudflare set_real_ip_from and
+    # real_ip_header globally. Do not include a second copy here. On another host,
+    # first prove no global definition exists, then enable one reviewed include:
+    # include /www/server/nginx/conf/meppp-cloudflare-real-ip.conf;
+
+    access_log /www/wwwlogs/meppp.com.log;
+    error_log /www/wwwlogs/meppp.com.error.log warn;
+    client_max_body_size 10m;
+
+    location = /health/live {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+        proxy_pass http://127.0.0.1:18080;
+        proxy_set_header Host $host;
+    }
+
+    location = /health/ready {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+        proxy_pass http://127.0.0.1:18080;
+        proxy_set_header Host $host;
+    }
+
+    location = /login/ {
+        limit_req zone=meppp_auth burst=5 nodelay;
+        proxy_pass http://127.0.0.1:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+    }
+
+    location = /join/ {
+        limit_req zone=meppp_auth burst=3 nodelay;
+        proxy_pass http://127.0.0.1:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+    }
+
+    location = /admin {
+        auth_basic "MEPPP administration";
+        auth_basic_user_file /www/server/nginx/conf/meppp-auth/.htpasswd;
+        limit_req zone=meppp_admin burst=5 nodelay;
+        proxy_pass http://127.0.0.1:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+    }
+
+    location ^~ /admin/ {
+        auth_basic "MEPPP administration";
+        auth_basic_user_file /www/server/nginx/conf/meppp-auth/.htpasswd;
+        limit_req zone=meppp_admin burst=10 nodelay;
+        proxy_pass http://127.0.0.1:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+    }
+
+    location / {
+        limit_req zone=meppp_public burst=30 nodelay;
+        proxy_pass http://127.0.0.1:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+}

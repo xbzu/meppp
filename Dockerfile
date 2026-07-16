@@ -12,8 +12,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY --from=uv /uv /uvx /bin/
 
-RUN groupadd --system meppp \
-    && useradd --system --gid meppp --home-dir /app meppp \
+RUN groupadd --system --gid 10001 meppp \
+    && useradd --system --uid 10001 --gid meppp --home-dir /app meppp \
     && mkdir -p /app /data \
     && chown -R meppp:meppp /app /data
 
@@ -23,6 +23,7 @@ COPY --chown=meppp:meppp pyproject.toml uv.lock README.md ./
 COPY --chown=meppp:meppp src ./src
 COPY --chown=meppp:meppp manage.py ./
 COPY --chown=meppp:meppp --chmod=755 docker/entrypoint.sh ./docker/entrypoint.sh
+COPY --chown=meppp:meppp docker/healthcheck.py ./docker/healthcheck.py
 
 RUN uv sync --locked --no-dev --no-editable
 

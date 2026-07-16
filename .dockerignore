@@ -6,8 +6,15 @@ media
 staticfiles
 *.sqlite3
 *.sqlite3-*
+*.sqlite3.sha256
 .coverage
 htmlcov
 __pycache__
 *.py[cod]
-.env
+.env*
+!.env.example
+deploy/secrets
+deploy/nginx/*.key
+deploy/nginx/*.pem
+deploy/**/.htpasswd*
+*.backup

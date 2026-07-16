@@ -366,14 +366,18 @@ class ProxyRateLimitTests(WebTestCase):
             with self.assertRaises(RateLimitExceeded):
                 enforce_rate_limit(second, scope="login")
 
-    def test_trusted_proxy_requires_one_canonical_real_ip(self):
+    def test_invalid_proxy_ip_fails_closed_to_the_gateway_bucket(self):
         missing = self.request(remote="10.0.0.5")
         chain = self.request(remote="10.0.0.5", real_ip="198.51.100.1, 198.51.100.2")
         invalid = self.request(remote="10.0.0.5", real_ip="not-an-ip")
 
-        self.assertIsNone(client_ip(missing))
-        self.assertIsNone(client_ip(chain))
-        self.assertIsNone(client_ip(invalid))
+        self.assertEqual(client_ip(missing), "10.0.0.5")
+        self.assertEqual(client_ip(chain), "10.0.0.5")
+        self.assertEqual(client_ip(invalid), "10.0.0.5")
+        with patch.dict(RATE_LIMITS, {"login": RateLimit(1, 60)}):
+            enforce_rate_limit(missing, scope="login")
+            with self.assertRaises(RateLimitExceeded):
+                enforce_rate_limit(chain, scope="login")
 
 
 class PublishingUiTests(WebTestCase):

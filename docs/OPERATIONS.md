@@ -36,8 +36,8 @@ Before first start:
 Start and inspect:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.2 .
-docker image inspect meppp:v0.1.0-rc.2 >/dev/null
+DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.3 .
+docker image inspect meppp:v0.1.0-rc.3 >/dev/null
 docker compose up --detach --no-build --wait app
 docker compose ps
 docker compose logs --tail=100 app
@@ -96,11 +96,36 @@ When the server has no independently mounted backup device, use the split prepar
 
 1. Install the matching service and timer from `deploy/systemd/`. The service runs the release-matched `deploy/cron/meppp-prepare-backup.sh` from `/opt/meppp`. Enable the timer only after a manual service run succeeds. It creates an online database backup, performs a restore drill, verifies snapshot media, and writes a media manifest before the pull window.
 2. Generate a dedicated SSH key on the Mac. Add only its public key to the server with an `authorized_keys` restriction equivalent to `command="/usr/bin/rrsync -ro /srv/meppp/data",restrict`. Back up `authorized_keys` first and confirm the installed `rrsync` path. This key must not receive an unrestricted shell.
-3. Create the destination directory on the verified external volume. Copy `deploy/macos/com.meppp.offsite-backup.plist.example` to the user's LaunchAgents directory and replace every `REPLACE_...` value, including the expected external-volume UUID. Do not load a template containing placeholders, and do not use a symlink as the destination.
+3. Create the destination directory on the verified external volume. Copy `deploy/macos/com.meppp.offsite-backup.plist.example` to the user's LaunchAgents directory and replace every placeholder, including the expected external-volume UUID and a private lock-file path under the user's local cache directory. The lock is coordination metadata only; databases and media still go exclusively to the verified external volume. Do not load a template containing placeholders, and do not use a symlink as the destination or lock path.
 4. Run `deploy/macos/meppp-offsite-pull.sh` manually once. Confirm that its `LAST_SUCCESS` marker is written on the external disk, the selected database returns `integrity_check=ok`, the copied database and media manifests verify, and the reported backup age is below 26 hours.
 5. Load the LaunchAgent and run one attended test. Monitor the success marker; a loaded job alone is not backup proof.
 
 The pull script fails closed when the external disk is absent, has the wrong UUID, is the root filesystem, lacks the configured free-space floor, or receives an old/mismatched snapshot. It uses additive copies only and never falls back to the Mac system disk. At every release and at least monthly, copy a selected external database artifact back to an isolated server staging directory and run `restore_sqlite` plus `verify_media` there. Do not overwrite the live database during this proof.
+
+If an unattended LaunchAgent receives `Operation not permitted` while writing the removable volume, its manual success is still useful recovery evidence but is not proof of scheduled backup. Do not redirect it to the Mac system disk. Use a separately hosted Linux backup target instead: install `deploy/remote/meppp-remote-pull.sh`, `deploy/remote/meppp-remote-monitor.sh`, their environment example, and the matching `deploy/systemd/meppp-remote-*` units. Keep the source key root-only under `/etc/meppp`; systemd passes it to the non-login service account with `LoadCredential`. Run the pull manually, complete an isolated restore drill, and only then enable both the daily pull and hourly health-monitor timers. A pull failure leaves `LAST_FAILURE`; stale or damaged backup evidence leaves `MONITOR_FAILURE`; the next fully verified pull clears both. The source-side key remains forced through read-only `rrsync`, so the backup target can read the prepared database/media tree but cannot obtain a shell or write to production.
+
+The backup target requires a non-login account plus a traversable, non-listable parent directory. Keep credentials owned by root and the backup tree owned only by the service account:
+
+```bash
+useradd --system --user-group --home-dir /nonexistent --no-create-home \
+  --shell /usr/sbin/nologin meppp-backup
+install -d -o root -g root -m 700 /etc/meppp
+install -d -o root -g meppp-backup -m 710 /srv/backups
+install -d -o meppp-backup -g meppp-backup -m 700 /srv/backups/meppp.com
+install -o root -g root -m 600 SOURCE_READ_ONLY_KEY /etc/meppp/source-readonly-ed25519
+install -o root -g root -m 600 PINNED_KNOWN_HOSTS /etc/meppp/source-known_hosts
+```
+
+Back up the source account's `authorized_keys` before adding the dedicated public key. Restrict it to the backup target's fixed address, the distribution `rrsync`, read-only mode, and the MEPPP data root:
+
+```text
+from="BACKUP_TARGET_IP",restrict,command="/usr/bin/rrsync -ro /srv/meppp/data" ssh-ed25519 DEDICATED_PUBLIC_KEY
+```
+
+Install the scripts, reviewed environment file, services, and timers. Run both services manually and inspect `LAST_SUCCESS` before enabling either timer; never enable from unit-file validation alone.
+The packaged units allow writes only to `/srv/backups/meppp.com` and `/run/meppp-remote-pull`; changing either environment value requires a matching review and update of every related unit.
+
+Current macOS rsync may send `--dirs`, which Debian 11's older `/usr/bin/rrsync` allow-list does not recognize. After proving that exact error, install `deploy/rrsync/meppp-rrsync-compat.sh` as `/usr/local/sbin/meppp-rrsync` and reference it in the key's forced command. The wrapper converts only that token to the equivalent `-d` before invoking the distribution checker; it does not weaken the read-only or restricted-directory boundary.
 
 Database backup alone is incomplete once an entry has images. Submitted media is immutable even after moderation or author withdrawal, so the scheduled job keeps a non-destructive media superset and a snapshot-specific SHA-256 manifest. It never uses `--delete`. Before any disaster recovery on a fresh host, restore the verified media mirror into `/data/media`, then restore the selected database and run:
 

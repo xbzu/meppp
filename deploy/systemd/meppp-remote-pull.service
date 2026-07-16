@@ -1,0 +1,30 @@
+[Unit]
+Description=Pull and verify the MEPPP independent remote backup
+Wants=network-online.target
+After=network-online.target
+OnFailure=meppp-remote-pull-failure.service
+
+[Service]
+Type=oneshot
+User=meppp-backup
+Group=meppp-backup
+EnvironmentFile=/etc/meppp/remote-backup.env
+LoadCredential=source-key:/etc/meppp/source-readonly-ed25519
+LoadCredential=source-known-hosts:/etc/meppp/source-known_hosts
+ExecStart=/usr/local/sbin/meppp-remote-pull
+RuntimeDirectory=meppp-remote-pull
+RuntimeDirectoryMode=0700
+UMask=0077
+TimeoutStartSec=30m
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+CapabilityBoundingSet=
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc/meppp
+ReadWritePaths=/srv/backups/meppp.com /run/meppp-remote-pull
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

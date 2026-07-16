@@ -8,6 +8,7 @@ offsite_dir="${MEPPP_OFFSITE_DIR:?Set MEPPP_OFFSITE_DIR}"
 remote="${MEPPP_BACKUP_REMOTE:?Set MEPPP_BACKUP_REMOTE}"
 ssh_key="${MEPPP_BACKUP_SSH_KEY:?Set MEPPP_BACKUP_SSH_KEY}"
 known_hosts="${MEPPP_BACKUP_KNOWN_HOSTS:?Set MEPPP_BACKUP_KNOWN_HOSTS}"
+lock_file="${MEPPP_BACKUP_LOCK_FILE:-${offsite_dir}/.pull.lock}"
 max_age_seconds="${MEPPP_BACKUP_MAX_AGE_SECONDS:-93600}"
 minimum_free_kib="${MEPPP_BACKUP_MINIMUM_FREE_KIB:-1048576}"
 
@@ -19,6 +20,19 @@ test -d "$offsite_volume"
 test -d "$offsite_dir"
 test -f "$ssh_key"
 test -f "$known_hosts"
+case "$lock_file" in
+    /*) ;;
+    *)
+        echo "refusing backup: lock file path must be absolute" >&2
+        exit 1
+        ;;
+esac
+lock_parent=$(dirname "$lock_file")
+test -d "$lock_parent"
+if [ -L "$lock_parent" ] || [ -L "$lock_file" ]; then
+    echo "refusing backup: lock path must not be a symbolic link" >&2
+    exit 1
+fi
 
 volume_uuid() {
     /usr/sbin/diskutil info -plist "$offsite_volume" | \
@@ -77,7 +91,6 @@ if [ "$(stat -f '%d' "$offsite_dir/media")" != "$offsite_device" ]; then
     echo "refusing backup: media destination is outside the external volume" >&2
     exit 1
 fi
-lock_file="${offsite_dir}/.pull.lock"
 if ! /usr/bin/shlock -f "$lock_file" -p "$$"; then
     echo "another MEPPP offsite pull is already running" >&2
     exit 1

@@ -1,0 +1,23 @@
+[Unit]
+Description=Verify MEPPP remote backup freshness and manifests
+OnFailure=meppp-remote-monitor-failure.service
+
+[Service]
+Type=oneshot
+User=meppp-backup
+Group=meppp-backup
+EnvironmentFile=/etc/meppp/remote-backup.env
+ExecStart=/usr/local/sbin/meppp-remote-monitor
+UMask=0077
+TimeoutStartSec=10m
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+CapabilityBoundingSet=
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/backups/meppp.com
+RestrictAddressFamilies=AF_UNIX

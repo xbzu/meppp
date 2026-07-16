@@ -201,7 +201,8 @@ class InvitationAdminTests(TestCase):
         self.assertContains(response, "复制邀请码")
         self.assertContains(response, "web/js/admin_invitation.js")
         self.assertContains(response, "web/css/admin_invitation.css")
-        self.assertEqual(response.headers["Cache-Control"], "private, no-store")
+        for directive in ("private", "no-store", "no-transform"):
+            self.assertIn(directive, response.headers["Cache-Control"])
         self.assertNotEqual(invitation.token_digest, plaintext)
         self.assertEqual(invitation.bound_email, "invitee@example.test")
 

@@ -174,7 +174,8 @@ class OperableMediaUiTests(TestCase):
             f"bytes */{video.byte_size}",
         )
         self.assertEqual(rejected_range.headers["Accept-Ranges"], "bytes")
-        self.assertEqual(rejected_range.headers["Cache-Control"], "private, no-store")
+        for directive in ("private", "no-store", "no-transform"):
+            self.assertIn(directive, rejected_range.headers["Cache-Control"])
         poster = self.client.get(reverse("web:video-poster-file", args=[video.public_id]))
         self.assertEqual(poster.status_code, 200)
         self.assertEqual(poster.headers["Content-Type"], "image/webp")

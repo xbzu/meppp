@@ -1,6 +1,6 @@
 [project]
 name = "meppp"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 description = "A lightweight, independently implemented community platform"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"

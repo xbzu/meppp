@@ -1,28 +1,31 @@
 {% extends 'web/base.html' %}
+{% block body_class %}auth-page{% endblock %}
 {% block title %}加入社区 · {{ site_config.site_name }}{% endblock %}
 {% block content %}
-  <div class="auth-layout">
-    <section class="auth-copy">
-      <p class="eyebrow">JOIN THE LEDGER</p>
-      <h1>一个账号，一份清楚的公共记录</h1>
-      <p>你的公开主页只展示用户名、昵称、简介和公开内容；邮箱、登录记录和内部权限不会出现在公开页面。</p>
-      <ol class="join-principles"><li>说清事实和观点的区别</li><li>尊重具体的人</li><li>允许认真地不同意</li></ol>
-    </section>
+  <div class="auth-layout paopao-auth-layout">
     <section class="auth-card" aria-labelledby="register-title">
+      <a class="auth-brand" href="{% url 'web:home' %}" aria-label="返回 {{ site_config.site_name }} 广场">
+        <span aria-hidden="true">M</span><strong>{{ site_config.site_name }}</strong>
+      </a>
+      <nav class="auth-tabs" aria-label="账号入口">
+        <a href="{% url 'web:login' %}">登录</a>
+        <a href="{% url 'web:register' %}" aria-current="page">注册</a>
+      </nav>
       {% if registration_available %}
-        <h2 id="register-title">{% if registration_mode == 'invite' %}使用邀请加入{% else %}创建成员账号{% endif %}</h2>
-        <p>{% if registration_mode == 'invite' %}邀请码只能领取一次，并可能绑定指定邮箱。{% else %}注册后会自动登录。{% endif %}</p>
+        <h1 id="register-title">{% if registration_mode == 'invite' %}使用邀请加入{% else %}创建成员账号{% endif %}</h1>
+        <p class="auth-intro">{% if registration_mode == 'invite' %}输入管理员发给你的单次邀请码。{% else %}填写下面的信息，注册后会自动登录。{% endif %}</p>
         <form method="post" class="stacked-form" novalidate>
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next }}">
           {% include 'web/_form_fields.html' with form=form only %}
+          <p class="registration-legal">提交注册表示你已经阅读并同意 <a href="{% url 'web:community-rules' %}">社区公约</a> 与 <a href="{% url 'web:privacy-notice' %}">隐私说明</a>。</p>
           <button class="button-primary button-block" type="submit">加入社区</button>
         </form>
       {% else %}
         <div class="closed-register">
-          <span aria-hidden="true">○</span>
-          <h2 id="register-title">注册暂未开放</h2>
-          <p>管理员目前关闭了新成员注册。已经有账号的成员仍可正常登录。</p>
+          <span aria-hidden="true">M</span>
+          <h1 id="register-title">注册暂未开放</h1>
+          <p>注册入口已经准备好，目前由管理员暂时关闭。已有账号的成员仍可正常登录。</p>
           <a class="button-primary button-block" href="{% url 'web:login' %}">前往登录</a>
         </div>
       {% endif %}

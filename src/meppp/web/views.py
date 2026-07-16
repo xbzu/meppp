@@ -202,6 +202,16 @@ def home(request):
     )
 
 
+@require_http_methods(["GET", "HEAD"])
+def community_rules(request):
+    return render(request, "web/community_rules.html")
+
+
+@require_http_methods(["GET", "HEAD"])
+def privacy_notice(request):
+    return render(request, "web/privacy_notice.html")
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def entry_create(request):

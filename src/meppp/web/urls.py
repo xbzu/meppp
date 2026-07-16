@@ -11,6 +11,8 @@ urlpatterns = [
     path("login/", views.MemberLoginView.as_view(), name="login"),
     path("logout/", views.MemberLogoutView.as_view(), name="logout"),
     path("join/", views.register, name="register"),
+    path("rules/", views.community_rules, name="community-rules"),
+    path("privacy/", views.privacy_notice, name="privacy-notice"),
     path("me/", member_views.dashboard, name="member-dashboard"),
     path("me/settings/", member_views.settings, name="member-settings"),
     path(

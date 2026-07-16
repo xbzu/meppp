@@ -177,6 +177,56 @@ class PublicReadTests(WebTestCase):
 
 
 class AuthenticationUiTests(WebTestCase):
+    def test_registration_links_to_readable_rules_and_privacy_pages(self):
+        self.open_site()
+
+        register_response = self.client.get(reverse("web:register"))
+
+        self.assertContains(
+            register_response,
+            f'href="{reverse("web:community-rules")}"',
+        )
+        self.assertContains(
+            register_response,
+            f'href="{reverse("web:privacy-notice")}"',
+        )
+        for route_name, heading in (
+            ("web:community-rules", "社区公约"),
+            ("web:privacy-notice", "隐私说明"),
+        ):
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, f"<h1>{heading}</h1>", html=True)
+
+    def test_home_registration_copy_matches_open_invite_and_closed_modes(self):
+        cases = (
+            (RegistrationMode.OPEN, ("免费注册", "注册加入"), ("查看注册状态",)),
+            (RegistrationMode.INVITE, ("使用邀请注册", "凭邀请加入"), ("免费注册",)),
+            (RegistrationMode.CLOSED, ("查看注册状态",), ("免费注册", "注册加入")),
+        )
+        for mode, expected, excluded in cases:
+            with self.subTest(mode=mode):
+                SiteConfiguration.objects.update_or_create(
+                    pk=1,
+                    defaults={"registration_mode": mode},
+                )
+                response = self.client.get(reverse("web:home"))
+                for text in expected:
+                    self.assertContains(response, text)
+                for text in excluded:
+                    self.assertNotContains(response, text)
+
+    def test_registration_entry_remains_visible_when_registration_is_closed(self):
+        home_response = self.client.get(reverse("web:home"))
+        login_response = self.client.get(reverse("web:login"))
+
+        register_url = reverse("web:register")
+        self.assertContains(home_response, f'href="{register_url}"')
+        self.assertContains(home_response, "查看注册状态")
+        self.assertContains(login_response, f'href="{register_url}"')
+        self.assertContains(login_response, "查看注册状态")
+
     def test_registration_is_closed_by_default_for_get_and_post(self):
         get_response = self.client.get(reverse("web:register"))
         post_response = self.client.post(
@@ -364,6 +414,65 @@ class AuthenticationUiTests(WebTestCase):
             )
 
         self.assertEqual(response.status_code, 429)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_registration_rate_limit_blocks_repeated_attempts_by_ip(self):
+        self.open_site()
+        with patch.dict(RATE_LIMITS, {"register": RateLimit(1, 60)}):
+            self.client.post(
+                reverse("web:register"),
+                {
+                    "username": "first-attempt",
+                    "email": "",
+                    "password1": "short",
+                    "password2": "short",
+                },
+                REMOTE_ADDR="198.51.100.12",
+            )
+            response = self.client.post(
+                reverse("web:register"),
+                {
+                    "username": "second-attempt",
+                    "email": "",
+                    "password1": PASSWORD,
+                    "password2": PASSWORD,
+                    "accept_rules": "on",
+                },
+                REMOTE_ADDR="198.51.100.12",
+            )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.headers["Retry-After"], "60")
+        self.assertFalse(User.objects.filter(username="second-attempt").exists())
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_registration_identity_normalization_blocks_compatibility_character_bypass(self):
+        self.open_site()
+        with patch.dict(RATE_LIMITS, {"register": RateLimit(1, 60)}):
+            self.client.post(
+                reverse("web:register"),
+                {
+                    "username": "A",
+                    "email": "",
+                    "password1": "short",
+                    "password2": "short",
+                },
+                REMOTE_ADDR="198.51.100.21",
+            )
+            response = self.client.post(
+                reverse("web:register"),
+                {
+                    "username": "Ａ",
+                    "email": "",
+                    "password1": PASSWORD,
+                    "password2": PASSWORD,
+                    "accept_rules": "on",
+                },
+                REMOTE_ADDR="198.51.100.22",
+            )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(User.objects.filter(username__iexact="A").exists())
         self.assertNotIn("_auth_user_id", self.client.session)
 
 

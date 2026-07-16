@@ -1,0 +1,28 @@
+{% extends 'web/base.html' %}
+{% block title %}社区公约 · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <article class="reading-column policy-page">
+    <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回首页</a>
+    <header>
+      <p class="eyebrow">COMMUNITY RULES</p>
+      <h1>社区公约</h1>
+      <p>MEPPP 鼓励轻松分享，也认真保护每一位参与讨论的人。</p>
+    </header>
+    <section>
+      <h2>尊重具体的人</h2>
+      <p>讨论观点与事实，不骚扰、侮辱、威胁、冒充或公开他人的私人信息。</p>
+    </section>
+    <section>
+      <h2>说清来源与边界</h2>
+      <p>引用外部信息时保留来源和上下文；只上传你有权分享的文字与图片，不把别人的内容冒充为自己的作品。</p>
+    </section>
+    <section>
+      <h2>拒绝垃圾与操纵</h2>
+      <p>不批量注册、不刷赞、不重复发布广告、诈骗、恶意链接或绕过社区审核与限流。</p>
+    </section>
+    <section>
+      <h2>处置与申诉</h2>
+      <p>管理员可根据公开规则隐藏违规内容、限制账号或保留必要审计记录。成员可通过内容旁的举报入口提交具体原因。</p>
+    </section>
+  </article>
+{% endblock %}

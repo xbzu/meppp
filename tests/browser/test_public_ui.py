@@ -146,17 +146,52 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.open("/")
 
         expect(self.page).to_have_title(re.compile("MEPPP"))
-        expect(self.page.get_by_role("heading", name="把值得讨论的事情，写清楚。")).to_be_visible()
+        expect(self.page.get_by_role("heading", name="广场", exact=True)).to_be_visible()
+        expect(self.page.locator(".paopao-shell")).to_be_visible()
+        expect(self.page.locator(".stream-panel")).to_be_visible()
         expect(self.page.get_by_text("小社区不需要追赶每一种功能")).to_be_visible()
         self.page.screenshot(path=RESULTS_DIR / "public-home-desktop.png", full_page=True)
-        self.page.get_by_label("搜索社区").fill("小社区")
-        self.page.get_by_role("button", name="搜索").click()
+        rightbar_search = self.page.locator(".rightbar-search")
+        rightbar_search.get_by_label("搜索社区").fill("小社区")
+        rightbar_search.get_by_label("搜索社区").press("Enter")
         self.page.wait_for_load_state("networkidle")
         expect(self.page.get_by_text("小社区不需要追赶每一种功能")).to_be_visible()
         self.page.get_by_role("link", name="林木").first.click()
         self.page.wait_for_load_state("networkidle")
         expect(self.page.get_by_role("heading", name="林木")).to_be_visible()
         expect(self.page.get_by_text("lin@example.test")).to_have_count(0)
+        self.assert_browser_clean()
+
+    def test_closed_registration_stays_discoverable_and_explains_status(self):
+        configuration = SiteConfiguration.objects.get(pk=1)
+        configuration.registration_mode = RegistrationMode.CLOSED
+        configuration.save(update_fields=("registration_mode", "updated_at"))
+
+        self.open("/")
+        register_link = self.page.locator(".guest-composer").get_by_role(
+            "link", name="查看注册状态"
+        )
+        expect(register_link).to_be_visible()
+        register_link.click()
+        self.page.wait_for_load_state("networkidle")
+
+        expect(self.page).to_have_url(re.compile(r"/join/$"))
+        expect(self.page.get_by_role("heading", name="注册暂未开放")).to_be_visible()
+        self.page.screenshot(path=RESULTS_DIR / "registration-closed-desktop.png", full_page=True)
+        self.assert_browser_clean()
+
+    def test_tablet_feed_uses_paopao_drawer_without_overflow(self):
+        self.page.set_viewport_size({"width": 820, "height": 900})
+        self.open("/")
+
+        expect(self.page.locator(".feed-panel")).to_be_visible()
+        expect(self.page.locator(".community-sidebar")).to_be_hidden()
+        expect(self.page.locator(".discover-rail")).to_be_hidden()
+        menu = self.page.get_by_label("打开导航")
+        expect(menu).to_be_visible()
+        menu.click()
+        expect(self.page.locator("#mobile-discovery")).to_be_visible()
+        self.page.screenshot(path=RESULTS_DIR / "public-home-tablet.png", full_page=True)
         self.assert_browser_clean()
 
     def test_member_can_publish_comment_and_like_without_javascript_errors(self):
@@ -364,7 +399,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_label("我愿意遵守社区公约").check()
         self.page.get_by_role("button", name="加入社区").click()
         self.page.wait_for_load_state("networkidle")
-        expect(self.page.get_by_text("欢迎回来，invitee", exact=False)).to_be_visible()
+        expect(self.page.get_by_text("欢迎加入", exact=False)).to_be_visible()
 
         self.page.get_by_role("link", name="写一条").click()
         self.page.get_by_label("正文").fill("邀请制审核闭环：这条内容先进入待审队列。")
@@ -480,6 +515,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         )
 
         self.open("/join/")
+        self.page.screenshot(path=RESULTS_DIR / "registration-open-mobile.png", full_page=True)
         self.page.get_by_label("用户名").fill("mobile")
         self.page.get_by_label("邮箱").fill("mobile@example.test")
         self.page.get_by_label("密码", exact=True).fill(PASSWORD)
@@ -488,6 +524,11 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_role("button", name="加入社区").click()
         self.page.wait_for_load_state("networkidle")
 
-        expect(self.page.get_by_text("欢迎回来，mobile", exact=False)).to_be_visible()
+        expect(self.page.get_by_text("欢迎加入", exact=False)).to_be_visible()
+        menu = self.page.get_by_label("打开导航")
+        expect(menu).to_be_visible()
+        menu.click()
         expect(self.page.get_by_role("link", name=re.compile("通知"))).to_be_visible()
+        expect(self.page.locator("#mobile-discovery")).to_be_visible()
+        expect(self.page.locator("#mobile-search")).to_be_visible()
         self.assert_browser_clean()

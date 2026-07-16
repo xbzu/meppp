@@ -1,0 +1,28 @@
+{% extends 'web/base.html' %}
+{% block title %}隐私说明 · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <article class="reading-column policy-page">
+    <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回首页</a>
+    <header>
+      <p class="eyebrow">PRIVACY NOTICE</p>
+      <h1>隐私说明</h1>
+      <p>这里说明首版 MEPPP 为提供账号、发布、互动和安全管理所处理的信息。</p>
+    </header>
+    <section>
+      <h2>公开信息</h2>
+      <p>用户名、昵称、简介、公开动态、话题、评论以及互动计数会展示在社区页面。邮箱、登录记录和内部权限不会出现在公开主页。</p>
+    </section>
+    <section>
+      <h2>账号与安全信息</h2>
+      <p>系统保存密码哈希、会话、安全限流所需的短期计数，以及审核、举报和配置变更所需的最小记录。限流键经过不可逆摘要处理。</p>
+    </section>
+    <section>
+      <h2>图片处理</h2>
+      <p>上传图片会经过完整解码、方向校正、元数据移除和统一重编码。只有公开内容的图片可被匿名访问。</p>
+    </section>
+    <section>
+      <h2>成员控制</h2>
+      <p>成员可以修改公开资料、修改密码并撤回符合当前状态的自有内容。首版密码找回尚未开放，注册者需要妥善保存密码。</p>
+    </section>
+  </article>
+{% endblock %}

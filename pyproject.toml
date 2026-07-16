@@ -1,0 +1,52 @@
+[project]
+name = "meppp"
+version = "0.1.0"
+description = "A lightweight, independently implemented community platform"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+license = "MIT"
+authors = [{ name = "xbzu" }]
+dependencies = [
+  "Django>=5.2.16,<5.3",
+  "gunicorn>=23,<24",
+  "whitenoise>=6.9,<7",
+]
+
+[dependency-groups]
+dev = [
+  "coverage[toml]>=7.10,<8",
+  "playwright>=1.61,<1.62",
+  "ruff>=0.12,<1",
+]
+
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"meppp.web" = ["templates/**/*.html", "static/**/*"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["B", "DJ", "E", "F", "I", "UP"]
+ignore = ["DJ008"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.coverage.run]
+branch = true
+source = ["meppp"]
+omit = ["*/migrations/*", "*/asgi.py", "*/wsgi.py"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true

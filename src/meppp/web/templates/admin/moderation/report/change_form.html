@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+  {% if moderation_workflow_url %}
+    <li><a href="{{ moderation_workflow_url }}" class="viewsitelink">处理举报</a></li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

@@ -2,7 +2,8 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-.python-version
+build/
+dist/
 .venv/
 
 # Django runtime data
@@ -11,11 +12,17 @@ media/
 staticfiles/
 *.sqlite3
 *.sqlite3-*
+*.sqlite3.sha256
+*.backup
 
 # Configuration and secrets
 .env
 .env.*
 !.env.example
+deploy/secrets/
+deploy/nginx/*.key
+deploy/nginx/*.pem
+deploy/**/.htpasswd*
 
 # Test and quality caches
 .coverage
@@ -24,6 +31,7 @@ htmlcov/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+test-results/
 
 # Editors and operating systems
 .DS_Store

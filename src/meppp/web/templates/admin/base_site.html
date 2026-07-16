@@ -1,0 +1,5 @@
+{% extends 'admin/base.html' %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'web/css/admin.css' %}">{% endblock %}
+{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}"><span class="admin-mark" aria-hidden="true">M</span><span>MEPPP 管理后台</span></a></div>{% endblock %}
+{% block nav-global %}<a class="public-site-link" href="{% url 'web:home' %}">查看公开站点</a>{% endblock %}

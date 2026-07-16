@@ -1,0 +1,21 @@
+{% extends 'web/base.html' %}
+{% block title %}提交举报 · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="narrow-form-page">
+    <a class="back-link" href="{{ return_url }}"><span aria-hidden="true">←</span> 返回</a>
+    <p class="eyebrow">PRIVATE MODERATION NOTE</p>
+    <h1>向管理员提交举报</h1>
+    <p class="form-lead">举报不会公开显示。请只填写帮助判断的必要信息，不要提交密码、身份证号或其他敏感资料。</p>
+    <div class="target-summary">
+      <span>举报对象</span>
+      {% if subject_type == 'user' %}<strong>成员 @{{ target.username }}</strong>
+      {% elif subject_type == 'entry' %}<strong>内容：{{ target.body|truncatechars:80 }}</strong>
+      {% else %}<strong>评论：{{ target.body|truncatechars:80 }}</strong>{% endif %}
+    </div>
+    <form method="post" class="stacked-form" novalidate>
+      {% csrf_token %}
+      {% include 'web/_form_fields.html' with form=form only %}
+      <div class="form-actions"><button class="button-danger" type="submit">确认提交</button><a class="button-secondary" href="{{ return_url }}">取消</a></div>
+    </form>
+  </div>
+{% endblock %}

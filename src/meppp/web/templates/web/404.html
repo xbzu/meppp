@@ -1,0 +1,3 @@
+{% extends 'web/base.html' %}
+{% block title %}没有找到 · {{ site_config.site_name }}{% endblock %}
+{% block content %}<div class="error-page"><p class="error-code">404</p><h1>这页不在公开记录里</h1><p>它可能从未存在、已经隐藏，或者当前账号没有查看权限。</p><a class="button-primary" href="{% url 'web:home' %}">返回动态</a></div>{% endblock %}

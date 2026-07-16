@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "ci-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.10.10"
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Verify lock file
+        run: uv lock --check
+
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Verify migrations and settings
+        run: |
+          uv run python manage.py makemigrations --check --dry-run
+          uv run python manage.py check
+
+      - name: Run tests with coverage
+        run: |
+          uv run coverage run manage.py test meppp
+          uv run coverage report
+
+      - name: Test standalone container health probe
+        run: uv run python -m unittest tests.test_container_healthcheck -v
+
+      - name: Check production security settings
+        env:
+          MEPPP_ENV: production
+          MEPPP_SECRET_KEY: ci-only-long-secret-key-that-is-never-used-outside-tests-123456789
+          MEPPP_ALLOWED_HOSTS: meppp.com,www.meppp.com
+          MEPPP_CSRF_TRUSTED_ORIGINS: https://meppp.com,https://www.meppp.com
+          MEPPP_SECURE: "1"
+          MEPPP_SECURE_HSTS_SECONDS: "31536000"
+          MEPPP_SECURE_HSTS_INCLUDE_SUBDOMAINS: "1"
+          MEPPP_SECURE_HSTS_PRELOAD: "1"
+          MEPPP_DATA_DIR: /tmp/meppp-ci-data
+        run: uv run python manage.py check --deploy --fail-level WARNING
+
+  browser:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.10.10"
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Install Chromium
+        run: uv run python -m playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: uv run python manage.py test tests.browser -v 2
+
+      - name: Upload browser evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Build image
+        env:
+          MEPPP_SECRET_KEY: ci-only-compose-validation-secret
+        run: |
+          docker compose config --quiet
+          docker build --tag meppp:ci .
+
+      - name: Smoke test image
+        env:
+          MEPPP_SECRET_KEY: ci-only-long-secret-key-that-is-never-used-outside-tests-123456789
+          MEPPP_IMAGE: meppp:ci
+          MEPPP_TRUST_PROXY: "1"
+          MEPPP_TRUSTED_PROXY_IPS: 172.30.89.1/32
+        run: |
+          container_id=""
+          cleanup() {
+            if [ -n "$container_id" ]; then
+              docker compose logs app || true
+            fi
+            docker compose down --volumes --remove-orphans || true
+          }
+          trap cleanup EXIT
+          docker compose up --no-build --detach --wait app
+          container_id=$(docker compose ps --quiet app)
+          test -n "$container_id"
+          test "$(docker exec "$container_id" id -u)" = "10001"
+          docker exec "$container_id" python manage.py shell -c \
+            'from django.conf import settings; assert settings.SECURE_HSTS_SECONDS == 3600; assert not settings.SECURE_HSTS_INCLUDE_SUBDOMAINS; assert not settings.SECURE_HSTS_PRELOAD'
+          curl --fail --silent --header 'Host: meppp.com' \
+            http://127.0.0.1:18080/health/ready
+          curl --fail --silent --output /tmp/meppp-homepage.html \
+            --header 'Host: meppp.com' \
+            --header 'X-Forwarded-Proto: https' \
+            --header 'X-Real-IP: 198.51.100.10' \
+            http://127.0.0.1:18080/
+          grep --fixed-strings "COMMUNITY LEDGER · 01" /tmp/meppp-homepage.html
+          curl --fail --silent --output /tmp/meppp-app.css \
+            --header 'Host: meppp.com' \
+            --header 'X-Forwarded-Proto: https' \
+            --header 'X-Real-IP: 198.51.100.10' \
+            http://127.0.0.1:18080/static/web/css/app.css
+          grep --fixed-strings -- "--paper: #f2f3ed;" /tmp/meppp-app.css
+          docker exec "$container_id" sh -c \
+            'if touch /app/.write-test 2>/dev/null; then exit 1; fi; touch /data/.write-test /tmp/.write-test; rm /data/.write-test /tmp/.write-test'

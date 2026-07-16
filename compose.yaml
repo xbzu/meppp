@@ -1,0 +1,72 @@
+services:
+  app:
+    image: "${MEPPP_IMAGE:-meppp:local}"
+    build: .
+    init: true
+    restart: unless-stopped
+    environment:
+      MEPPP_ENV: production
+      MEPPP_DEBUG: "${MEPPP_DEBUG:-0}"
+      MEPPP_SECRET_KEY: "${MEPPP_SECRET_KEY:?Set MEPPP_SECRET_KEY in .env}"
+      MEPPP_SECRET_KEY_FALLBACKS: "${MEPPP_SECRET_KEY_FALLBACKS:-}"
+      MEPPP_ALLOWED_HOSTS: "${MEPPP_ALLOWED_HOSTS:-meppp.com,www.meppp.com}"
+      MEPPP_CSRF_TRUSTED_ORIGINS: "${MEPPP_CSRF_TRUSTED_ORIGINS:-https://meppp.com,https://www.meppp.com}"
+      MEPPP_SECURE: "${MEPPP_SECURE:-1}"
+      MEPPP_SECURE_HSTS_SECONDS: "${MEPPP_SECURE_HSTS_SECONDS:-3600}"
+      MEPPP_SECURE_HSTS_INCLUDE_SUBDOMAINS: "${MEPPP_SECURE_HSTS_INCLUDE_SUBDOMAINS:-0}"
+      MEPPP_SECURE_HSTS_PRELOAD: "${MEPPP_SECURE_HSTS_PRELOAD:-0}"
+      MEPPP_TRUST_PROXY: "${MEPPP_TRUST_PROXY:-0}"
+      MEPPP_TRUSTED_PROXY_IPS: "${MEPPP_TRUSTED_PROXY_IPS:-}"
+      MEPPP_DATA_DIR: /data
+      MEPPP_TIME_ZONE: "${MEPPP_TIME_ZONE:-Asia/Shanghai}"
+      MEPPP_LOG_LEVEL: "${MEPPP_LOG_LEVEL:-INFO}"
+      MEPPP_BACKUP_BEFORE_MIGRATE: "${MEPPP_BACKUP_BEFORE_MIGRATE:-1}"
+      MEPPP_BACKUP_DIR: /data/backups/sqlite
+      MEPPP_BACKUP_DAILY: "${MEPPP_BACKUP_DAILY:-7}"
+      MEPPP_BACKUP_WEEKLY: "${MEPPP_BACKUP_WEEKLY:-4}"
+      MEPPP_HEALTHCHECK_HOST: "${MEPPP_HEALTHCHECK_HOST:-meppp.com}"
+    ports:
+      - "127.0.0.1:${MEPPP_PORT:-18080}:8000"
+    volumes:
+      - "${MEPPP_DATA_MOUNT:-meppp_data}:/data"
+    read_only: true
+    cap_drop:
+      - ALL
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cpus: "${MEPPP_CPUS:-1.0}"
+    mem_limit: "${MEPPP_MEMORY_LIMIT:-768m}"
+    mem_reservation: "${MEPPP_MEMORY_RESERVATION:-256m}"
+    pids_limit: "${MEPPP_PIDS_LIMIT:-256}"
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "${MEPPP_LOG_MAX_SIZE:-10m}"
+        max-file: "${MEPPP_LOG_MAX_FILES:-5}"
+        compress: "true"
+    healthcheck:
+      test: ["CMD", "python", "./docker/healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      meppp_internal:
+        ipv4_address: "${MEPPP_CONTAINER_IP:-172.30.89.10}"
+
+volumes:
+  meppp_data:
+    name: "${MEPPP_DATA_VOLUME_NAME:-meppp_data}"
+
+networks:
+  meppp_internal:
+    name: "${MEPPP_NETWORK_NAME:-meppp_internal}"
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "${MEPPP_NETWORK_SUBNET:-172.30.89.0/28}"
+          gateway: "${MEPPP_NETWORK_GATEWAY:-172.30.89.1}"

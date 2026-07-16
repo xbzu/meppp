@@ -1,0 +1,3 @@
+{% extends 'web/base.html' %}
+{% block title %}操作太快 · {{ site_config.site_name }}{% endblock %}
+{% block content %}<div class="error-page"><p class="error-code">429</p><h1>先停一下</h1><p>短时间内的操作次数过多。请稍后再继续，刚才没有成功的操作不会写入系统。</p><a class="button-primary" href="{% url 'web:home' %}">返回动态</a></div>{% endblock %}

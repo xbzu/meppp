@@ -1,0 +1,23 @@
+{% extends 'web/base.html' %}
+{% block title %}成员登录 · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="auth-layout">
+    <section class="auth-copy">
+      <p class="eyebrow">MEMBER ACCESS</p>
+      <h1>回到正在发生的讨论</h1>
+      <p>没有算法追赶，也没有必须完成的红点。登录只是为了继续写、继续回应。</p>
+      <div class="auth-quote"><span aria-hidden="true">“</span><p>慢一点表达，通常会更接近真正想说的话。</p></div>
+    </section>
+    <section class="auth-card" aria-labelledby="login-title">
+      <h2 id="login-title">成员登录</h2>
+      <p>使用用户名和密码进入。</p>
+      <form method="post" class="stacked-form" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        {% include 'web/_form_fields.html' with form=form only %}
+        <button class="button-primary button-block" type="submit">登录</button>
+      </form>
+      {% if site_config.registration_mode == 'open' %}<p class="auth-switch">还不是成员？<a href="{% url 'web:register' %}">创建账号</a></p>{% endif %}
+    </section>
+  </div>
+{% endblock %}

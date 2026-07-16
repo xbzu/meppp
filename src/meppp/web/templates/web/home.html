@@ -1,0 +1,74 @@
+{% extends 'web/base.html' %}
+{% block title %}{% if query %}搜索“{{ query }}” · {% endif %}{{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="content-grid">
+    <section class="main-column" aria-labelledby="feed-title">
+      <div class="ledger-intro">
+        <p class="eyebrow">TODAY'S LEDGER</p>
+        <div>
+          <h1>{{ site_config.tagline|default:'把值得讨论的事情，写清楚。' }}</h1>
+          {% if not request.user.is_authenticated and site_config.registration_mode == 'open' %}
+            <p>这里按时间展示每一条公开表达，没有推荐算法替你决定。</p>
+            <a class="text-link" href="{% url 'web:register' %}">加入社区 <span aria-hidden="true">→</span></a>
+          {% elif request.user.is_authenticated %}
+            <p>欢迎回来，{{ request.user.profile.display_name|default:request.user.username }}。</p>
+            <a class="text-link" href="{% url 'web:entry-create' %}">写下新内容 <span aria-hidden="true">→</span></a>
+          {% else %}
+            <p>公开阅读已经开放，成员注册目前由管理员控制。</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="feed-heading">
+        <div>
+          <p class="section-index">01 / PUBLIC NOTES</p>
+          <h2 id="feed-title">
+            {% if query %}搜索“{{ query }}”
+            {% elif topic_slug %}话题 #{{ topic_slug }}
+            {% elif feed_mode == 'following' %}正在关注
+            {% else %}最新发布{% endif %}
+          </h2>
+        </div>
+        <div class="feed-tabs" aria-label="动态筛选">
+          <a href="{% url 'web:home' %}"{% if feed_mode == 'latest' %} aria-current="page"{% endif %}>最新</a>
+          {% if request.user.is_authenticated %}<a href="{% url 'web:home' %}?feed=following"{% if feed_mode == 'following' %} aria-current="page"{% endif %}>关注</a>{% endif %}
+        </div>
+      </div>
+
+      {% if page.object_list %}
+        <div class="entry-list">
+          {% for entry in page.object_list %}{% include 'web/_entry_card.html' with entry=entry request=request %}{% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <span aria-hidden="true">○</span>
+          <h3>这里还很安静</h3>
+          {% if query or topic_slug %}<p>没有找到匹配的公开内容，可以换一个关键词。</p><a href="{% url 'web:home' %}">清除筛选</a>
+          {% elif request.user.is_authenticated %}<p>成为第一个认真写下一条的人。</p><a href="{% url 'web:entry-create' %}">开始写</a>
+          {% else %}<p>第一批公开内容发布后，会按时间出现在这里。</p>{% endif %}
+        </div>
+      {% endif %}
+      {% include 'web/_pagination.html' with page=page query_string=query_string only %}
+    </section>
+
+    <aside class="side-column" aria-label="社区信息">
+      <section class="side-section">
+        <p class="section-index">02 / TOPICS</p>
+        <h2>正在讨论</h2>
+        {% if topics %}
+          <ol class="topic-list">
+            {% for topic in topics %}
+              <li><a href="{% url 'web:home' %}?topic={{ topic.slug|urlencode }}"><span>#{{ topic.label }}</span><small>{{ topic.entry_count }} 条</small></a></li>
+            {% endfor %}
+          </ol>
+        {% else %}<p class="muted">话题会随着公开内容出现。</p>{% endif %}
+      </section>
+      <section class="side-section rule-note">
+        <p class="section-index">03 / HOUSE NOTE</p>
+        <h2>社区公约</h2>
+        <p>对事不对人。引用事实时给出上下文；意见不同，也不降低表达质量。</p>
+        {% if request.user.is_authenticated %}<a href="{% url 'web:entry-create' %}">发布一条内容</a>{% else %}<a href="{% url 'web:login' %}">成员登录</a>{% endif %}
+      </section>
+    </aside>
+  </div>
+{% endblock %}

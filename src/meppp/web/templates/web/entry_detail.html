@@ -1,0 +1,45 @@
+{% extends 'web/base.html' %}
+{% block title %}{{ entry.body|truncatechars:28 }} · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="reading-column">
+    <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回动态</a>
+    {% include 'web/_entry_card.html' with entry=entry is_detail=True request=request %}
+
+    <section class="comments-section" id="comments" aria-labelledby="comments-title">
+      <div class="comments-heading">
+        <div><p class="section-index">DISCUSSION</p><h2 id="comments-title">{{ entry.comment_count }} 条评论</h2></div>
+      </div>
+
+      {% if site_config.comments_enabled %}
+        {% if request.user.is_authenticated %}
+          <form class="comment-form" method="post" action="{% url 'web:comment-create' entry.public_id %}" novalidate>
+            {% csrf_token %}
+            {% include 'web/_form_fields.html' with form=comment_form only %}
+            <div class="comment-actions">
+              <span><strong data-character-count="comment">0</strong> / {{ site_config.comment_max_length }} 字</span>
+              <button class="button-primary button-small" type="submit">发表讨论</button>
+            </div>
+          </form>
+        {% else %}
+          <div class="sign-in-note"><p>登录后可以参与讨论。</p><a href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">成员登录</a></div>
+        {% endif %}
+      {% else %}<div class="status-notice">管理员当前关闭了新评论。</div>{% endif %}
+
+      {% if comments %}
+        <div class="comment-list">
+          {% for comment in comments %}
+            <article class="comment-item">
+              <header class="identity-line">
+                <a class="avatar avatar-small" href="{% url 'web:member-profile' comment.author.public_id %}" aria-hidden="true" tabindex="-1">{{ comment.author.profile.display_name|default:comment.author.username|first|upper }}</a>
+                <div><a class="identity-name" href="{% url 'web:member-profile' comment.author.public_id %}">{{ comment.author.profile.display_name|default:comment.author.username }}</a><span class="identity-handle">@{{ comment.author.username }}</span></div>
+                <time class="entry-time" datetime="{{ comment.created_at|date:'c' }}">{{ comment.created_at|timesince }}前</time>
+              </header>
+              <div class="comment-body">{{ comment.body|linebreaksbr }}</div>
+              {% if request.user.is_authenticated and request.user != comment.author %}<a class="quiet-action" href="{% url 'web:report-comment' comment.public_id %}?next={{ request.get_full_path|urlencode }}">举报</a>{% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}<div class="empty-state empty-state-compact"><p>还没有评论。第一条认真回应会很重要。</p></div>{% endif %}
+    </section>
+  </div>
+{% endblock %}

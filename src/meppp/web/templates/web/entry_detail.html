@@ -2,12 +2,15 @@
 {% block title %}{{ entry.body|truncatechars:28 }} · {{ site_config.site_name }}{% endblock %}
 {% block content %}
   <div class="reading-column">
-    <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回动态</a>
+    <header class="stream-page-header">
+      <a class="back-link" href="{% url 'web:home' %}" aria-label="返回广场"><span aria-hidden="true">←</span></a>
+      <h1>动态</h1>
+    </header>
     {% include 'web/_entry_card.html' with entry=entry is_detail=True request=request %}
 
     <section class="comments-section" id="comments" aria-labelledby="comments-title">
       <div class="comments-heading">
-        <div><p class="section-index">DISCUSSION</p><h2 id="comments-title">{{ entry.comment_count }} 条评论</h2></div>
+        <h2 id="comments-title">{{ entry.comment_count }} 条评论</h2>
       </div>
 
       {% if site_config.comments_enabled %}

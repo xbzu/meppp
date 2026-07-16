@@ -1,0 +1,73 @@
+<div class="sidebar-inner">
+  <a class="sidebar-brand" href="{% url 'web:home' %}" aria-label="{{ site_config.site_name }} 首页">
+    <span class="sidebar-brand-mark" aria-hidden="true">M</span>
+    <span class="sr-only">{{ site_config.site_name }}</span>
+  </a>
+
+  {% if is_mobile_drawer %}
+    <section class="mobile-discovery" id="mobile-discovery" aria-label="搜索与话题发现">
+      <form action="{% url 'web:home' %}" method="get" role="search">
+        <label class="sr-only" for="mobile-search">搜索社区</label>
+        <input id="mobile-search" name="q" type="search" value="{{ query|default:'' }}" placeholder="搜索动态或成员" maxlength="80">
+        <button type="submit" aria-label="搜索">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
+        </button>
+      </form>
+    </section>
+  {% endif %}
+
+  <nav class="sidebar-nav" aria-label="社区导航">
+    <a{% if feed_mode == 'latest' and not topic_slug and not query %} class="is-active" aria-current="page"{% endif %} href="{% url 'web:home' %}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+      <span>广场</span>
+    </a>
+    <a{% if topic_slug %} class="is-active" aria-current="page"{% endif %} href="{% url 'web:home' %}#community-topics">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7 21M17 3l-2 18M4 9h16M3 15h16"/></svg>
+      <span>话题</span>
+    </a>
+    {% if request.user.is_authenticated %}
+      <a{% if feed_mode == 'following' %} class="is-active" aria-current="page"{% endif %} href="{% url 'web:home' %}?feed=following">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-8-4.8-8-10a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.2-8 10-8 10Z"/></svg>
+        <span>关注</span>
+      </a>
+      <a href="{% url 'web:notifications' %}" aria-label="通知{% if unread_notification_count %}，{{ unread_notification_count }} 条未读{% endif %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8.5h18C21 16 18 16 18 9ZM10 21h4"/></svg>
+        <span>提醒</span>
+        {% if unread_notification_count %}<strong class="sidebar-badge">{{ unread_notification_count }}</strong>{% endif %}
+      </a>
+      <a href="{% url 'web:member-dashboard' %}" aria-label="我的">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+        <span>主页</span>
+      </a>
+      {% if request.user.is_staff %}
+        <a href="{% url 'admin:index' %}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21h-4v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3v-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.5V3h4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+          <span>管理</span>
+        </a>
+      {% endif %}
+      <a class="sidebar-create" href="{% url 'web:entry-create' %}" aria-label="写一条">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.5-1 10-10-3.5-3.5-10 10L4 20ZM13.5 6.5 17 10"/></svg>
+        <span>发布</span>
+      </a>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-account">
+    {% if request.user.is_authenticated %}
+      <a class="sidebar-user" href="{% url 'web:member-dashboard' %}">
+        <span class="avatar avatar-small" aria-hidden="true">{{ request.user.profile.display_name|default:request.user.username|first|upper }}</span>
+        <span><strong>{{ request.user.profile.display_name|default:request.user.username }}</strong><small>@{{ request.user.username }}</small></span>
+      </a>
+      <form method="post" action="{% url 'web:logout' %}">
+        {% csrf_token %}
+        <button class="sidebar-logout" type="submit">退出</button>
+      </form>
+    {% else %}
+      <p>登录后，精彩更多</p>
+      <div class="sidebar-auth-actions">
+        <a class="button-secondary" href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">登录</a>
+        <a class="button-primary" href="{% url 'web:register' %}">{% if site_config.registration_mode == 'invite' %}凭邀请加入{% elif site_config.registration_mode == 'open' %}注册加入{% else %}查看注册状态{% endif %}</a>
+      </div>
+    {% endif %}
+  </div>
+</div>

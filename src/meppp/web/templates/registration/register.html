@@ -2,35 +2,18 @@
 {% block body_class %}auth-page{% endblock %}
 {% block title %}加入社区 · {{ site_config.site_name }}{% endblock %}
 {% block content %}
-  <div class="auth-layout">
-    <section class="auth-copy">
-      {% if registration_available %}
-        <p class="eyebrow">JOIN MEPPP</p>
-        <h1>加入一个轻松分享、认真回应的社区。</h1>
-        <p>你的公开主页只展示用户名、昵称、简介和公开内容；邮箱与登录信息始终留在账号系统内。</p>
-        <ul class="auth-benefits">
-          <li><span aria-hidden="true">01</span>创建属于你的社区主页</li>
-          <li><span aria-hidden="true">02</span>分享文字、话题与最多四张图片</li>
-          <li><span aria-hidden="true">03</span>管理自己的资料与发布记录</li>
-        </ul>
-        <div class="auth-quote"><span aria-hidden="true">M</span><p>注册完成后会自动登录，马上就能开始分享。</p></div>
-      {% else %}
-        <p class="eyebrow">REGISTRATION STATUS</p>
-        <h1>注册入口已经准备好，当前暂未开放。</h1>
-        <p>社区仍可公开阅读，已有账号的成员可以照常登录、发布和参与讨论。</p>
-        <ul class="auth-benefits">
-          <li><span aria-hidden="true">01</span>公开内容继续正常浏览</li>
-          <li><span aria-hidden="true">02</span>已有成员继续正常登录</li>
-          <li><span aria-hidden="true">03</span>开放时间由管理员统一配置</li>
-        </ul>
-        <div class="auth-quote"><span aria-hidden="true">M</span><p>开放后，这里会直接显示完整注册表单。</p></div>
-      {% endif %}
-    </section>
+  <div class="auth-layout paopao-auth-layout">
     <section class="auth-card" aria-labelledby="register-title">
+      <a class="auth-brand" href="{% url 'web:home' %}" aria-label="返回 {{ site_config.site_name }} 广场">
+        <span aria-hidden="true">M</span><strong>{{ site_config.site_name }}</strong>
+      </a>
+      <nav class="auth-tabs" aria-label="账号入口">
+        <a href="{% url 'web:login' %}">登录</a>
+        <a href="{% url 'web:register' %}" aria-current="page">注册</a>
+      </nav>
       {% if registration_available %}
-        <p class="auth-card-kicker">CREATE ACCOUNT</p>
-        <h2 id="register-title">{% if registration_mode == 'invite' %}使用邀请加入{% else %}创建成员账号{% endif %}</h2>
-        <p>{% if registration_mode == 'invite' %}输入管理员发给你的单次邀请码。{% else %}填写下面的信息，注册后会自动登录。{% endif %}</p>
+        <h1 id="register-title">{% if registration_mode == 'invite' %}使用邀请加入{% else %}创建成员账号{% endif %}</h1>
+        <p class="auth-intro">{% if registration_mode == 'invite' %}输入管理员发给你的单次邀请码。{% else %}填写下面的信息，注册后会自动登录。{% endif %}</p>
         <form method="post" class="stacked-form" novalidate>
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next }}">
@@ -41,7 +24,7 @@
       {% else %}
         <div class="closed-register">
           <span aria-hidden="true">M</span>
-          <h2 id="register-title">注册暂未开放</h2>
+          <h1 id="register-title">注册暂未开放</h1>
           <p>注册入口已经准备好，目前由管理员暂时关闭。已有账号的成员仍可正常登录。</p>
           <a class="button-primary button-block" href="{% url 'web:login' %}">前往登录</a>
         </div>

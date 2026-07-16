@@ -49,7 +49,7 @@ MEPPP_TEST_DATABASE_PATH=/tmp/meppp-browser-tests.sqlite3 uv run python manage.p
 - 优先长期可维护性，不引入不必要的微服务、队列、缓存或搜索服务。
 - 前台、管理后台和业务规则共用同一套领域服务。
 - 从第一天保留审核、审计、配置回滚和数据库迁移边界。
-- 本项目为独立实现，只采用通用产品思想和独立编写的需求，不导入其他项目的源码、数据结构、文案、资产或 Git 历史。
+- 本项目的业务代码与数据模型为独立实现；前台信息层级参考了已固定版本的 MIT 开源界面，并在项目内重新编写 Django 模板与 CSS，不导入对方源码、数据结构、文案、品牌资产或 Git 历史。
 
 更多说明：
 
@@ -57,6 +57,7 @@ MEPPP_TEST_DATABASE_PATH=/tmp/meppp-browser-tests.sqlite3 uv run python manage.p
 - [产品范围](docs/PRODUCT_SCOPE.md)
 - [架构](docs/ARCHITECTURE.md)
 - [UI 规范](docs/UI_SPEC.md)
+- [第三方设计参考与许可说明](THIRD_PARTY_NOTICES.md)
 - [X / YouTube 链接分享路线](docs/EXTERNAL_SHARE_ROADMAP.md)
 - [运行与部署边界](docs/OPERATIONS.md)
 - [生产部署包](deploy/README.md)

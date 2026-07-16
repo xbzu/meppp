@@ -2,119 +2,65 @@
 {% block body_class %}home-page{% endblock %}
 {% block title %}{% if query %}搜索“{{ query }}” · {% endif %}{{ site_config.site_name }}{% endblock %}
 {% block content %}
-  <div class="community-layout">
-    <aside class="community-sidebar" aria-label="社区导航">
-      <nav class="sidebar-nav">
-        <a{% if feed_mode == 'latest' and not topic_slug %} class="is-active" aria-current="page"{% endif %} href="{% url 'web:home' %}">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
-          <span>社区广场</span>
-        </a>
-        <a{% if topic_slug %} class="is-active" aria-current="page"{% endif %} href="{% url 'web:home' %}#community-topics">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7 21M17 3l-2 18M4 9h16M3 15h16"/></svg>
-          <span>发现话题</span>
-        </a>
-        {% if request.user.is_authenticated %}
-          <a{% if feed_mode == 'following' %} class="is-active" aria-current="page"{% endif %} href="{% url 'web:home' %}?feed=following">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-8-4.8-8-10a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.2-8 10-8 10Z"/></svg>
-            <span>我的关注</span>
-          </a>
-          <a href="{% url 'web:notifications' %}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8.5h18C21 16 18 16 18 9ZM10 21h4"/></svg>
-            <span>消息中心</span>
-            {% if unread_notification_count %}<strong class="sidebar-badge">{{ unread_notification_count }}</strong>{% endif %}
-          </a>
-          <a href="{% url 'web:member-dashboard' %}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
-            <span>个人中心</span>
-          </a>
-          <a class="sidebar-create" href="{% url 'web:entry-create' %}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.5-1 10-10-3.5-3.5-10 10L4 20ZM13.5 6.5 17 10"/></svg>
-            <span>发布动态</span>
-          </a>
-        {% else %}
-          <a href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5M14 8l4 4-4 4M8 12h10"/></svg>
-            <span>成员登录</span>
-          </a>
-          <a class="sidebar-create" href="{% url 'web:register' %}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/></svg>
-            <span>{% if site_config.registration_mode == 'invite' %}凭邀请加入{% elif site_config.registration_mode == 'open' %}注册加入{% else %}查看注册状态{% endif %}</span>
-          </a>
-        {% endif %}
-      </nav>
-
-      <div class="sidebar-note">
-        <span class="online-dot" aria-hidden="true"></span>
-        <p><strong>轻量社区</strong><br>认真分享，也轻松聊天。</p>
-      </div>
+  <div class="paopao-shell community-layout">
+    <aside class="community-sidebar paopao-sidebar" aria-label="社区导航">
+      {% include 'web/_sidebar_nav.html' %}
     </aside>
 
-    <section class="feed-panel" aria-labelledby="feed-title">
-      <header class="feed-panel-header">
-        <div>
-          <p class="feed-kicker">MEPPP COMMUNITY</p>
-          <h1>{{ site_config.tagline|default:'把值得讨论的事情，写清楚。' }}</h1>
-        </div>
-        {% if request.user.is_authenticated %}
-          <div class="feed-tabs" aria-label="动态筛选">
-            <a href="{% url 'web:home' %}"{% if feed_mode == 'latest' %} aria-current="page"{% endif %}>最新</a>
-            <a href="{% url 'web:home' %}?feed=following"{% if feed_mode == 'following' %} aria-current="page"{% endif %}>关注</a>
+    <section class="feed-panel stream-panel" aria-labelledby="feed-title">
+      <header class="stream-header">
+        <details class="mobile-menu">
+          <summary aria-label="打开导航">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </summary>
+          <div class="mobile-drawer">
+            {% include 'web/_sidebar_nav.html' with is_mobile_drawer=True %}
           </div>
-        {% endif %}
+        </details>
+        <h1 id="feed-title">
+          {% if query %}搜索：{{ query }}
+          {% elif topic_slug %}#{{ topic_slug }}
+          {% elif feed_mode == 'following' %}正在关注
+          {% else %}广场{% endif %}
+        </h1>
       </header>
-
-      <section class="collapsed-discovery" id="mobile-discovery" aria-label="搜索与话题发现">
-        <form action="{% url 'web:home' %}" method="get" role="search">
-          <label class="sr-only" for="collapsed-search">搜索社区</label>
-          <input id="collapsed-search" name="q" type="search" value="{{ query|default:'' }}" placeholder="搜索动态或成员" maxlength="80">
-          <button type="submit">搜索</button>
-        </form>
-        {% if topics %}
-          <nav aria-label="热门话题快捷入口">
-            {% for topic in topics %}<a href="{% url 'web:home' %}?topic={{ topic.slug|urlencode }}">#{{ topic.label }}</a>{% endfor %}
-          </nav>
-        {% endif %}
-      </section>
 
       {% if request.user.is_authenticated %}
         <section class="quick-composer" aria-label="快速发布入口">
-          <div class="avatar avatar-current" aria-hidden="true">{{ request.user.profile.display_name|default:request.user.username|first|upper }}</div>
+          <span class="avatar avatar-current" aria-hidden="true">{{ request.user.profile.display_name|default:request.user.username|first|upper }}</span>
           <div class="quick-composer-main">
-            <p>欢迎回来，{{ request.user.profile.display_name|default:request.user.username }}。</p>
-            <a class="composer-prompt" href="{% url 'web:entry-create' %}">分享一点新鲜事、想法或照片……</a>
+            <a class="composer-prompt" href="{% url 'web:entry-create' %}">说说你的新鲜事……</a>
             <div class="composer-actions">
-              <span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m4 17 5-4 4 3 3-2 4 3"/></svg> 图片</span>
-              <a href="{% url 'web:entry-create' %}">开始发布</a>
+              <a class="composer-tool" href="{% url 'web:entry-create' %}" aria-label="添加图片">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m4 17 5-4 4 3 3-2 4 3"/></svg>
+                <span>图片</span>
+              </a>
+              <a class="composer-tool" href="{% url 'web:entry-create' %}" aria-label="添加话题">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7 21M17 3l-2 18M4 9h16M3 15h16"/></svg>
+                <span>话题</span>
+              </a>
+              <a class="button-primary composer-submit" href="{% url 'web:entry-create' %}">发布</a>
             </div>
           </div>
         </section>
       {% else %}
-        <section class="welcome-composer" aria-labelledby="welcome-title">
-          <div class="welcome-mark" aria-hidden="true">M</div>
+        <section class="quick-composer guest-composer" aria-label="登录或注册">
           <div>
-            <p class="welcome-label">欢迎来到 MEPPP</p>
-            <h2 id="welcome-title">看看大家在聊什么，也分享你的新鲜事。</h2>
-            <p>注册后可以发布、评论、点赞和关注喜欢的成员。</p>
+            <strong>登录后，精彩更多</strong>
+            <span>发布动态、评论、点赞并关注喜欢的成员。</span>
           </div>
-          <div class="welcome-actions">
+          <div class="guest-composer-actions">
+            <a class="button-secondary" href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">登录</a>
             <a class="button-primary" href="{% url 'web:register' %}">{% if site_config.registration_mode == 'invite' %}使用邀请注册{% elif site_config.registration_mode == 'open' %}免费注册{% else %}查看注册状态{% endif %}</a>
-            <a class="button-secondary" href="{% url 'web:login' %}">已有账号</a>
           </div>
         </section>
       {% endif %}
 
-      <div class="feed-heading">
-        <div>
-          <p class="section-index">PUBLIC FEED</p>
-          <h2 id="feed-title">
-            {% if query %}搜索“{{ query }}”
-            {% elif topic_slug %}话题 #{{ topic_slug }}
-            {% elif feed_mode == 'following' %}正在关注
-            {% else %}社区动态{% endif %}
-          </h2>
-        </div>
+      <nav class="feed-filters" aria-label="动态筛选">
+        <a href="{% url 'web:home' %}"{% if feed_mode == 'latest' and not query and not topic_slug %} aria-current="page"{% endif %}>最新</a>
+        {% if request.user.is_authenticated %}<a href="{% url 'web:home' %}?feed=following"{% if feed_mode == 'following' %} aria-current="page"{% endif %}>正在关注</a>{% endif %}
         {% if query or topic_slug %}<a class="clear-filter" href="{% url 'web:home' %}">清除筛选</a>{% endif %}
-      </div>
+      </nav>
 
       {% if page.object_list %}
         <div class="entry-list">
@@ -123,7 +69,7 @@
       {% else %}
         <div class="empty-state">
           <span aria-hidden="true">M</span>
-          <h3>这里还很安静</h3>
+          <h2>暂无动态</h2>
           {% if query or topic_slug %}<p>没有找到匹配的公开内容，可以换一个关键词。</p><a href="{% url 'web:home' %}">清除筛选</a>
           {% elif request.user.is_authenticated %}<p>成为第一个写下新动态的人。</p><a href="{% url 'web:entry-create' %}">开始发布</a>
           {% else %}<p>第一批公开内容发布后，会按时间出现在这里。</p>{% endif %}
@@ -132,12 +78,15 @@
       {% include 'web/_pagination.html' with page=page query_string=query_string only %}
     </section>
 
-    <aside class="discover-rail" aria-label="社区发现">
-      <section class="discover-card" id="community-topics">
-        <div class="discover-heading">
-          <div><p class="section-index">DISCOVER</p><h2>热门话题</h2></div>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7 21M17 3l-2 18M4 9h16M3 15h16"/></svg>
-        </div>
+    <aside class="discover-rail paopao-rightbar" aria-label="社区发现">
+      <form class="rightbar-search" action="{% url 'web:home' %}" method="get" role="search">
+        <label class="sr-only" for="rightbar-search">搜索社区</label>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
+        <input id="rightbar-search" name="q" type="search" value="{{ query|default:'' }}" placeholder="搜一搜……" maxlength="80">
+      </form>
+
+      <section class="rightbar-section" id="community-topics">
+        <h2>热门话题</h2>
         {% if topics %}
           <ol class="topic-list">
             {% for topic in topics %}
@@ -147,17 +96,11 @@
         {% else %}<p class="muted">话题会随着公开内容出现。</p>{% endif %}
       </section>
 
-      <section class="discover-card house-note">
-        <div class="discover-heading">
-          <div><p class="section-index">COMMUNITY NOTE</p><h2>一起好好说话</h2></div>
-        </div>
-        <ul>
-          <li>尊重具体的人</li>
-          <li>区分事实与观点</li>
-          <li>给讨论留下空间</li>
-        </ul>
-      </section>
-
+      <footer class="rightbar-footer">
+        <a href="{% url 'web:community-rules' %}">社区公约</a>
+        <a href="{% url 'web:privacy-notice' %}">隐私说明</a>
+        <span>© {{ site_config.site_name }}</span>
+      </footer>
     </aside>
   </div>
 {% endblock %}

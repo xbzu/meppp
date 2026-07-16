@@ -146,12 +146,14 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.open("/")
 
         expect(self.page).to_have_title(re.compile("MEPPP"))
-        expect(self.page.get_by_role("heading", name="把值得讨论的事情，写清楚。")).to_be_visible()
+        expect(self.page.get_by_role("heading", name="广场", exact=True)).to_be_visible()
+        expect(self.page.locator(".paopao-shell")).to_be_visible()
+        expect(self.page.locator(".stream-panel")).to_be_visible()
         expect(self.page.get_by_text("小社区不需要追赶每一种功能")).to_be_visible()
         self.page.screenshot(path=RESULTS_DIR / "public-home-desktop.png", full_page=True)
-        masthead_search = self.page.locator(".masthead-search")
-        masthead_search.get_by_label("搜索社区").fill("小社区")
-        masthead_search.get_by_role("button", name="搜索").click()
+        rightbar_search = self.page.locator(".rightbar-search")
+        rightbar_search.get_by_label("搜索社区").fill("小社区")
+        rightbar_search.get_by_label("搜索社区").press("Enter")
         self.page.wait_for_load_state("networkidle")
         expect(self.page.get_by_text("小社区不需要追赶每一种功能")).to_be_visible()
         self.page.get_by_role("link", name="林木").first.click()
@@ -166,11 +168,10 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         configuration.save(update_fields=("registration_mode", "updated_at"))
 
         self.open("/")
-        register_link = self.page.get_by_role("link", name="注册", exact=True)
+        register_link = self.page.locator(".guest-composer").get_by_role(
+            "link", name="查看注册状态"
+        )
         expect(register_link).to_be_visible()
-        expect(
-            self.page.locator(".welcome-composer").get_by_role("link", name="查看注册状态")
-        ).to_be_visible()
         register_link.click()
         self.page.wait_for_load_state("networkidle")
 
@@ -179,13 +180,16 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.screenshot(path=RESULTS_DIR / "registration-closed-desktop.png", full_page=True)
         self.assert_browser_clean()
 
-    def test_tablet_feed_collapses_context_rails_without_overflow(self):
-        self.page.set_viewport_size({"width": 1200, "height": 900})
+    def test_tablet_feed_uses_paopao_drawer_without_overflow(self):
+        self.page.set_viewport_size({"width": 820, "height": 900})
         self.open("/")
 
         expect(self.page.locator(".feed-panel")).to_be_visible()
         expect(self.page.locator(".community-sidebar")).to_be_hidden()
         expect(self.page.locator(".discover-rail")).to_be_hidden()
+        menu = self.page.get_by_label("打开导航")
+        expect(menu).to_be_visible()
+        menu.click()
         expect(self.page.locator("#mobile-discovery")).to_be_visible()
         self.page.screenshot(path=RESULTS_DIR / "public-home-tablet.png", full_page=True)
         self.assert_browser_clean()
@@ -395,7 +399,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_label("我愿意遵守社区公约").check()
         self.page.get_by_role("button", name="加入社区").click()
         self.page.wait_for_load_state("networkidle")
-        expect(self.page.get_by_text("欢迎回来，invitee", exact=False)).to_be_visible()
+        expect(self.page.get_by_text("欢迎加入", exact=False)).to_be_visible()
 
         self.page.get_by_role("link", name="写一条").click()
         self.page.get_by_label("正文").fill("邀请制审核闭环：这条内容先进入待审队列。")
@@ -520,11 +524,11 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_role("button", name="加入社区").click()
         self.page.wait_for_load_state("networkidle")
 
-        expect(self.page.get_by_text("欢迎回来，mobile", exact=False)).to_be_visible()
+        expect(self.page.get_by_text("欢迎加入", exact=False)).to_be_visible()
+        menu = self.page.get_by_label("打开导航")
+        expect(menu).to_be_visible()
+        menu.click()
         expect(self.page.get_by_role("link", name=re.compile("通知"))).to_be_visible()
-        discover_link = self.page.get_by_role("link", name="发现", exact=True)
-        expect(discover_link).to_be_visible()
-        discover_link.click()
         expect(self.page.locator("#mobile-discovery")).to_be_visible()
-        expect(self.page.locator("#collapsed-search")).to_be_visible()
+        expect(self.page.locator("#mobile-search")).to_be_visible()
         self.assert_browser_clean()

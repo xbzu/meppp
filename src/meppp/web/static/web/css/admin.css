@@ -1,18 +1,18 @@
 :root,
 html[data-theme="light"],
 html[data-theme="auto"] {
-  --primary: #2563eb;
+  --primary: #0284c7;
   --secondary: #1746b3;
   --accent: #dbe8ff;
   --header-color: #ffffff;
   --header-bg: #172033;
   --header-link-color: #ffffff;
-  --breadcrumbs-bg: #2563eb;
-  --link-fg: #2563eb;
+  --breadcrumbs-bg: #0284c7;
+  --link-fg: #0284c7;
   --link-hover-color: #1746b3;
-  --button-bg: #2563eb;
+  --button-bg: #0284c7;
   --button-hover-bg: #1746b3;
-  --default-button-bg: #2563eb;
+  --default-button-bg: #0284c7;
   --default-button-hover-bg: #1746b3;
   --delete-button-bg: #c4314b;
   --body-bg: #f4f7fc;
@@ -23,7 +23,7 @@ html[data-theme="auto"] {
 }
 
 #header {
-  border-bottom: 4px solid #2563eb;
+  border-bottom: 4px solid #0284c7;
 }
 
 #site-name a {
@@ -38,7 +38,7 @@ html[data-theme="auto"] {
   width: 30px;
   height: 30px;
   border-radius: 6px;
-  background: #2563eb;
+  background: #0284c7;
   color: #ffffff;
   font-family: "Avenir Next", "PingFang SC", sans-serif;
   font-size: 17px;
@@ -60,7 +60,7 @@ html[data-theme="auto"] {
 .module h2,
 .module caption,
 .inline-group h2 {
-  background: #2563eb;
+  background: #0284c7;
 }
 
 #content {

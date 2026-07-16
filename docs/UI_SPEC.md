@@ -1,26 +1,38 @@
 # Public UI specification
 
-## Direction: Blue Commons
+## Direction: PaoPao-style blue stream
 
-MEPPP uses an independent blue social-community interface built for quick discovery, lightweight publishing, and clear conversation. Its information architecture is informed by established three-column community patterns, including a high-level review of PaoPao CE, while every template, style, icon, word, and asset is independently implemented for MEPPP.
+MEPPP's public interface is an independent Django adaptation of the interaction hierarchy reviewed in PaoPao CE commit `2f55b4b5d7f204d1b939b2ba41ccfde4b8e071cd`. PaoPao CE is MIT-licensed and Copyright 2022 ROC. The implementation keeps the useful community structure while replacing its brand, content, assets, copy, routes, data model, components, and implementation.
 
-- Cobalt blue, airy blue-grey, white surfaces, dark navy text, and restrained violet/red state accents.
-- Local Chinese sans-serif stacks only; no network fonts or frontend framework dependency.
-- A compact global header plus a three-column desktop community layout: navigation, feed, and discovery.
-- The feed prioritises a visible composer, chronological entries, media, topics, and clear interaction actions.
-- Registration remains discoverable in every mode; the join page explains whether registration is open, invite-only, or temporarily closed.
-- Mobile uses a compact brand header and non-obscuring bottom navigation with safe-area spacing.
-- No copied logo, screenshots, source components, design tokens, sample content, or distinctive interface copy.
+go-postery commit `1bcebf66c70bec6d12f0c2be812984cd69b5de57` (MIT, Copyright 2025 Zhi Lei Yang) is used only as a secondary blue-colour and contrast check. Its source components, layout implementation, brand, logo, icons, screenshots, and demonstration content are not copied.
+
+- A quiet white canvas, dark text, restrained grey borders, and sky blue `#0284c7` for primary actions and active states.
+- Local Chinese sans-serif stacks only; no network font or frontend framework dependency.
+- A PaoPao-like three-column desktop hierarchy: compact navigation, one readable stream, and a small discovery rail.
+- The stream begins with a compact title and inline composer or a clear sign-in/register prompt, then uses border-separated entries instead of floating marketing cards.
+- Search and topics stay compact in the right rail and do not compete with the stream.
+- Registration remains directly discoverable for signed-out visitors; the register page explains whether registration is open, invite-only, or temporarily closed.
+- Mobile keeps the stream title at the top and opens the same navigation in a left drawer; there is no invented bottom navigation.
 - `MEPPP` is a configurable working name, not a permanently embedded product brand.
+
+## Reference-to-MEPPP mapping
+
+| Reviewed public pattern | Independent MEPPP implementation |
+| --- | --- |
+| Compact left navigation | `paopao-shell` navigation landmark using MEPPP routes, labels, and inline icons |
+| Narrow central timeline | `stream-panel` rendered by Django from MEPPP entries and moderation states |
+| Inline publishing prompt | MEPPP composer or login/register call to action governed by registration policy |
+| Compact topic/search rail | MEPPP topic counts and search form using MEPPP query parameters |
+| Responsive rail collapse | Native CSS breakpoints with MEPPP's mobile left drawer and safe-area contract |
 
 ## Pages
 
 | Page | Public behaviour |
 | --- | --- |
-| Home | Latest/following feed, text search, topics, registration or writing prompt |
+| Home | Latest/following stream, text search, topics, registration or writing prompt |
 | Entry | Full text, topics, like state, flat comments, bound report links |
 | Member | Public name, bio, counts, public entries, follow state |
-| Login/register | Public member authentication, fail-closed registration modes |
+| Login/register | Public member authentication, visible registration entry, fail-closed registration modes |
 | My community | Recipient-only content states, profile/password settings, and author withdrawal |
 | Composer | Text, up to four images with optional alternative text, and up to three existing topics; pending state in pre-moderation mode |
 | Notifications | Recipient-only follow, like, comment, moderation outcome/reason, and system notices |
@@ -29,11 +41,10 @@ MEPPP uses an independent blue social-community interface built for quick discov
 
 ## Responsive contract
 
-- `>= 1121px`: 220px navigation, up to 680px feed, and 280px discovery rail.
-- `761–1120px`: centred feed; both contextual rails are hidden.
-- `<= 760px`: one column, 12px page edges, compact top actions, and safe-area bottom navigation.
+- Wide desktop: 200px compact navigation, 620px stream, 240px discovery rail, and small inter-column gaps.
+- `822–1100px`: the left navigation collapses to icons while the 620px stream and 240px discovery rail remain visible.
+- `<= 821px`: both rails are hidden; the stream fills the available width and the title-bar menu opens a 312px left drawer.
 - Minimum interactive height is 44px where layout permits.
-- Fixed mobile navigation reserves body space and never covers form actions or feed content.
 - Media layout is one-up, two-up, three with a spanning final image, or a two-by-two grid.
 
 ## Accessibility and safety
@@ -48,4 +59,4 @@ MEPPP uses an independent blue social-community interface built for quick discov
 
 ## Independent implementation boundary
 
-Reference products may be reviewed at a high level to identify general information architecture and usability patterns. MEPPP does not import their DOM, CSS, source components, text, icons, assets, design tokens, route identifiers, or data structures. The current Blue Commons implementation was written directly in Django templates and native CSS against MEPPP's existing product stories and security contracts.
+The reference review establishes information hierarchy and interaction expectations, not a source-code import. MEPPP's templates and native CSS are written for its existing Django product stories and security contracts. It does not import the references' DOM, CSS, JavaScript/TypeScript/Vue components, text, icons, assets, routes, database structures, or demonstration data. Full attribution and scope are in [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).

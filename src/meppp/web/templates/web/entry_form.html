@@ -1,13 +1,13 @@
 {% extends 'web/base.html' %}
 {% block title %}写一条 · {{ site_config.site_name }}{% endblock %}
 {% block content %}
-  <div class="form-layout">
+  <div class="reading-column composer-page">
+    <header class="stream-page-header">
+      <a class="back-link" href="{% url 'web:home' %}" aria-label="返回广场"><span aria-hidden="true">←</span></a>
+      <h1 id="composer-title">发布动态</h1>
+    </header>
     <section class="form-surface" aria-labelledby="composer-title">
-      <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回动态</a>
-      <p class="eyebrow">SHARE SOMETHING</p>
-      <h1 id="composer-title">发布一条新动态</h1>
-      <p class="form-lead">分享想法、见闻或一组照片。图片上传后会移除设备信息并统一安全处理。</p>
-      <form method="post" enctype="multipart/form-data" class="stacked-form" novalidate>
+      <form method="post" enctype="multipart/form-data" class="stacked-form composer-form" novalidate>
         {% csrf_token %}
         {% include 'web/_form_fields.html' with form=form only %}
         <div class="composer-meta">
@@ -15,19 +15,10 @@
           {% if site_config.moderation_mode == 'pre' %}<span class="status-pill">发布前审核</span>{% else %}<span>发布后公开</span>{% endif %}
         </div>
         <div class="form-actions">
-          <button class="button-primary" type="submit">发布内容</button>
           <a class="button-secondary" href="{% url 'web:home' %}">取消</a>
+          <button class="button-primary" type="submit">发布内容</button>
         </div>
       </form>
     </section>
-    <aside class="form-aside" aria-label="写作提示">
-      <p class="section-index">POSTING TIPS</p>
-      <h2>让别人更容易接住你的话</h2>
-      <ul>
-        <li>一条动态聚焦一件新鲜事。</li>
-        <li>引用信息时补充来源和上下文。</li>
-        <li>配图可填写替代文字，阅读更友好。</li>
-      </ul>
-    </aside>
   </div>
 {% endblock %}

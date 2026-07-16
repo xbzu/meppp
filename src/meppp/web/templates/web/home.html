@@ -32,22 +32,22 @@
           <div class="quick-composer-main">
             <a class="composer-prompt" href="{% url 'web:entry-create' %}">说说你的新鲜事……</a>
             <div class="composer-actions">
-              <a class="composer-tool" href="{% url 'web:entry-create' %}" aria-label="添加图片">
+              {% if site_config.max_images_per_post %}<a class="composer-tool" href="{% url 'web:entry-create' %}?compose=image" aria-label="发布图片">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m4 17 5-4 4 3 3-2 4 3"/></svg>
                 <span>图片</span>
-              </a>
-              <a class="composer-tool" href="{% url 'web:entry-create' %}" aria-label="添加视频">
+              </a>{% endif %}
+              {% if site_config.video_uploads_enabled %}<a class="composer-tool" href="{% url 'web:entry-create' %}?compose=video" aria-label="发布视频">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="3"/><path d="m17 10 4-2v8l-4-2Z"/></svg>
                 <span>视频</span>
-              </a>
-              <a class="composer-tool" href="{% url 'web:entry-create' %}#id_source_url" aria-label="导入 X 或 YouTube 链接">
+              </a>{% endif %}
+              {% if site_config.x_references_enabled %}<a class="composer-tool" href="{% url 'web:entry-create' %}?compose=x" aria-label="分享 X 来源">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
-                <span>导入</span>
-              </a>
-              <a class="composer-tool" href="{% url 'web:entry-create' %}" aria-label="添加话题">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7 21M17 3l-2 18M4 9h16M3 15h16"/></svg>
-                <span>话题</span>
-              </a>
+                <span>X</span>
+              </a>{% endif %}
+              {% if site_config.youtube_references_enabled %}<a class="composer-tool" href="{% url 'web:entry-create' %}?compose=youtube" aria-label="分享 YouTube 来源">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="4"/><path d="m10 9 5 3-5 3Z"/></svg>
+                <span>YouTube</span>
+              </a>{% endif %}
               <a class="button-primary composer-submit" href="{% url 'web:entry-create' %}">发布</a>
             </div>
           </div>
@@ -55,8 +55,8 @@
       {% else %}
         <section class="quick-composer guest-composer" aria-label="登录或注册">
           <div>
-            <strong>登录后，精彩更多</strong>
-            <span>发布动态、评论、点赞并关注喜欢的成员。</span>
+            <strong>{% if site_config.registration_mode == 'open' %}现在就加入 {{ site_config.site_name }}{% elif site_config.registration_mode == 'invite' %}已有邀请码？加入 {{ site_config.site_name }}{% else %}登录后继续参与{% endif %}</strong>
+            <span>{% if site_config.registration_mode == 'closed' %}注册暂时关闭，已有成员仍可登录。{% else %}{% if site_config.registration_mode == 'open' %}免费注册{% else %}使用邀请码注册{% endif %}后可发文字{% if site_config.max_images_per_post %}、图片{% endif %}{% if site_config.video_uploads_enabled %}、短视频{% endif %}{% if site_config.x_references_enabled or site_config.youtube_references_enabled %}，也能分享{% if site_config.x_references_enabled %} X{% endif %}{% if site_config.x_references_enabled and site_config.youtube_references_enabled %} /{% endif %}{% if site_config.youtube_references_enabled %} YouTube{% endif %} 来源{% endif %}。{% endif %}</span>
           </div>
           <div class="guest-composer-actions">
             <a class="button-secondary" href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">登录</a>

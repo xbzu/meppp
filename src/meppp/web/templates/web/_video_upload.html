@@ -1,10 +1,10 @@
-<fieldset class="video-composer{% if field.errors %} has-error{% endif %}" data-video-composer>
+<fieldset id="composer-video" class="video-composer{% if field.errors %} has-error{% endif %}" data-video-composer data-composer-panel="video">
   <legend>{{ field.label }}</legend>
   <p id="video-help" class="field-help">
     MP4（H.264/AAC）或 WebM（VP8、VP9、AV1）；不超过 20 MB、5 分钟。服务器会移除元数据并生成封面；上传即表示你拥有或已获授权使用它。
   </p>
   {{ field }}
-  <label class="video-picker" for="{{ field.id_for_label }}" data-video-picker>
+  <label class="video-picker" for="{{ field.id_for_label }}" data-video-picker tabindex="0">
     <strong>选择视频</strong>
     <span>一次上传 1 个自己拥有或获授权的视频</span>
   </label>

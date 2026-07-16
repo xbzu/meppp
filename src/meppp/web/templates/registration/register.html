@@ -15,6 +15,13 @@
       {% if registration_available %}
         <h1 id="register-title">{% if registration_mode == 'invite' %}使用邀请加入{% else %}创建成员账号{% endif %}</h1>
         <p class="auth-intro">{% if registration_mode == 'invite' %}输入管理员发给你的单次邀请码。{% else %}填写下面的信息，注册后会自动登录。{% endif %}完成后请保存一次性显示的账号恢复码。</p>
+        <div class="registration-features" aria-label="注册后可用功能">
+          <span>文字动态</span>
+          {% if site_config.max_images_per_post %}<span>最多 {{ site_config.max_images_per_post }} 张图片</span>{% endif %}
+          {% if site_config.video_uploads_enabled %}<span>短视频</span>{% endif %}
+          {% if site_config.x_references_enabled %}<span>X 来源</span>{% endif %}
+          {% if site_config.youtube_references_enabled %}<span>YouTube 来源</span>{% endif %}
+        </div>
         <form method="post" class="stacked-form" novalidate>
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next }}">

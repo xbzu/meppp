@@ -1,5 +1,5 @@
 {% extends 'web/base.html' %}
-{% block title %}{{ entry.body|truncatechars:28 }} · {{ site_config.site_name }}{% endblock %}
+{% block title %}{% if entry.body %}{{ entry.body|truncatechars:28 }}{% else %}媒体动态{% endif %} · {{ site_config.site_name }}{% endblock %}
 {% block content %}
   <div class="reading-column">
     <header class="stream-page-header">

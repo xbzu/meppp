@@ -11,9 +11,9 @@
       </a>
     </header>
 
-    <div class="entry-body">
+    {% if entry.body %}<div class="entry-body">
       {% if is_detail %}{{ entry.body|linebreaksbr }}{% else %}{{ entry.body|truncatechars:420|linebreaksbr }}{% endif %}
-    </div>
+    </div>{% endif %}
 
     {% if entry.external_reference %}
       {% with source=entry.external_reference %}

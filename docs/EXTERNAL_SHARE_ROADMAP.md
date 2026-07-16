@@ -1,4 +1,4 @@
-# X / YouTube attributed import
+# X / YouTube attributed source sharing
 
 MEPPP implements external sharing as an attributed reference card: a member pastes a public X Post or YouTube video URL, optionally adds original context, reviews the normal publishing form, and confirms publication. It is deliberately not a third-party media downloader or automatic cross-platform repost bot.
 
@@ -25,4 +25,4 @@ MEPPP implements external sharing as an attributed reference card: a member past
 
 A browser share extension or PWA Share Target may open the existing prefilled draft route. OAuth connectors are considered only after the provider's then-current official API supports a user-selected collection and the implementation has PKCE/state, minimal read-only scope, encrypted token storage, revocation, audit and key-rotation boundaries.
 
-Status: implemented in `v0.1.0-rc.6`; full third-party media copying remains deliberately out of scope.
+Status: the source-reference contract was implemented in `v0.1.0-rc.6`; `v0.1.0-rc.8` adds distinct front-end entry points, provider recognition, and owner-controlled X/YouTube publishing switches. Full third-party media copying remains deliberately out of scope.

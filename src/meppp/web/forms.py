@@ -13,7 +13,12 @@ from meppp.configuration.models import (
     MAX_IMAGES_PER_POST,
     RegistrationMode,
 )
-from meppp.external.parsing import ExternalURLValidationError, parse_external_url
+from meppp.external.parsing import (
+    PROVIDER_X,
+    PROVIDER_YOUTUBE,
+    ExternalURLValidationError,
+    parse_external_url,
+)
 from meppp.moderation.models import ReportReason
 from meppp.publishing.models import MAX_VIDEO_UPLOAD_BYTES, Topic
 
@@ -196,26 +201,26 @@ class EntryForm(FormStyleMixin, forms.Form):
         required=False,
         widget=forms.Textarea(
             attrs={
-                "rows": 10,
+                "rows": 5,
                 "placeholder": "写下一个值得留下来的想法……",
                 "data-character-input": "entry",
             }
         ),
     )
     source_url = forms.URLField(
-        label="导入 X / YouTube",
+        label="分享 X / YouTube 来源",
         required=False,
         max_length=2_048,
         widget=forms.URLInput(
             attrs={
-                "placeholder": "粘贴 X Post 或 YouTube 视频链接",
+                "placeholder": "粘贴 X Post 或 YouTube 视频的公开链接",
                 "autocomplete": "off",
                 "spellcheck": "false",
                 "inputmode": "url",
                 "data-source-url": "",
             }
         ),
-        help_text="导入的是带原始署名和链接的引用卡片；不会下载或冒充原作者的媒体。",
+        help_text=("发布后会生成带原始署名和链接的来源卡片；不会下载、转存或冒充原作者的媒体。"),
     )
     topics = forms.ModelMultipleChoiceField(
         label="话题",
@@ -255,6 +260,7 @@ class EntryForm(FormStyleMixin, forms.Form):
     def __init__(self, *args, configuration, **kwargs):
         super().__init__(*args, **kwargs)
         self.configuration = configuration
+        self.external_source = None
         self.maximum_images = min(configuration.max_images_per_post, MAX_IMAGES_PER_POST)
         self.maximum_image_bytes = min(configuration.upload_max_bytes, MAX_IMAGE_UPLOAD_BYTES)
         self.fields["body"].max_length = configuration.post_max_length
@@ -267,13 +273,32 @@ class EntryForm(FormStyleMixin, forms.Form):
                 "data-max-bytes": str(self.maximum_image_bytes),
             }
         )
+        if self.maximum_images == 0:
+            self.fields.pop("images")
+            self.fields.pop("image_alt_texts")
+        if not configuration.video_uploads_enabled:
+            self.fields.pop("video")
+        if not configuration.x_references_enabled and not configuration.youtube_references_enabled:
+            self.fields.pop("source_url")
+        elif configuration.x_references_enabled and not configuration.youtube_references_enabled:
+            self.fields["source_url"].label = "分享 X 来源"
+            self.fields["source_url"].widget.attrs["placeholder"] = "粘贴 X Post 的公开链接"
+            self.fields[
+                "source_url"
+            ].help_text = "发布后会生成带原始署名和链接的 X 来源卡片；不会下载或转存原媒体。"
+        elif configuration.youtube_references_enabled and not configuration.x_references_enabled:
+            self.fields["source_url"].label = "分享 YouTube 来源"
+            self.fields["source_url"].widget.attrs["placeholder"] = "粘贴 YouTube 视频的公开链接"
+            self.fields[
+                "source_url"
+            ].help_text = "发布后会生成带原始署名和链接的 YouTube 来源卡片；不会下载或转存原媒体。"
         self.order_fields(
             (
                 "body",
-                "source_url",
                 "images",
                 "image_alt_texts",
                 "video",
+                "source_url",
                 "topics",
                 "nonce",
             )
@@ -292,6 +317,16 @@ class EntryForm(FormStyleMixin, forms.Form):
             self.external_source = parse_external_url(source_url)
         except ExternalURLValidationError as error:
             raise forms.ValidationError(str(error)) from error
+        if (
+            self.external_source.provider == PROVIDER_X
+            and not self.configuration.x_references_enabled
+        ):
+            raise forms.ValidationError("管理员当前关闭了 X 来源分享。")
+        if (
+            self.external_source.provider == PROVIDER_YOUTUBE
+            and not self.configuration.youtube_references_enabled
+        ):
+            raise forms.ValidationError("管理员当前关闭了 YouTube 来源分享。")
         return self.external_source.canonical_url
 
     def clean_topics(self):
@@ -359,10 +394,10 @@ class EntryForm(FormStyleMixin, forms.Form):
         if source_url and (images or video):
             self.add_error(
                 "source_url",
-                "导入外部引用时不能同时上传本地图片或视频，请分成两条动态。",
+                "分享外部来源时不能同时上传本地图片或视频，请分成两条动态。",
             )
-        if not cleaned_data.get("body") and not source_url:
-            self.add_error("body", "请填写正文，或导入一个 X / YouTube 链接。")
+        if not cleaned_data.get("body") and not source_url and not images and video is None:
+            self.add_error("body", "请填写正文，或添加图片、视频、X / YouTube 来源。")
         return cleaned_data
 
 

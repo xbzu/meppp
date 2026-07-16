@@ -6,6 +6,7 @@ from django.test import TransactionTestCase
 class ImageLimitMigrationTests(TransactionTestCase):
     migrate_from = [("configuration", "0002_alter_configurationrevision_options")]
     migrate_to = [("configuration", "0003_tighten_image_upload_limit")]
+    reset_to = [("configuration", "0004_site_feature_switches")]
 
     def test_old_twenty_mebibyte_limit_is_clamped_audited_and_constrained(self):
         executor = MigrationExecutor(connection)
@@ -39,4 +40,4 @@ class ImageLimitMigrationTests(TransactionTestCase):
             with self.assertRaises(IntegrityError), transaction.atomic():
                 SiteConfiguration.objects.filter(pk=1).update(upload_max_bytes=20 * 1024 * 1024)
         finally:
-            MigrationExecutor(connection).migrate(self.migrate_to)
+            MigrationExecutor(connection).migrate(self.reset_to)

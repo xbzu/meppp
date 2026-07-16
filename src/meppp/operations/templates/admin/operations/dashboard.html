@@ -58,6 +58,16 @@
         <div class="operations-value">{{ snapshot.registration_mode_label }}</div>
         <p class="operations-detail">{{ snapshot.moderation_mode_label }}</p>
       </section>
+      <section class="operations-card">
+        <h2>前台发布能力</h2>
+        <div class="operations-switches">
+          <span class="{% if snapshot.image_uploads_enabled %}is-on{% endif %}">图片</span>
+          <span class="{% if snapshot.video_uploads_enabled %}is-on{% endif %}">视频</span>
+          <span class="{% if snapshot.x_references_enabled %}is-on{% endif %}">X</span>
+          <span class="{% if snapshot.youtube_references_enabled %}is-on{% endif %}">YouTube</span>
+        </div>
+        <p class="operations-detail">蓝色为已开放；修改请进入站点配置。</p>
+      </section>
     </div>
 
     <section class="module">

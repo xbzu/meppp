@@ -21,6 +21,9 @@ class SiteConfigurationAdminForm(forms.ModelForm):
             "upload_max_bytes",
             "moderation_mode",
             "comments_enabled",
+            "video_uploads_enabled",
+            "x_references_enabled",
+            "youtube_references_enabled",
         )
         labels = {
             "site_name": "站点名称",
@@ -32,10 +35,18 @@ class SiteConfigurationAdminForm(forms.ModelForm):
             "upload_max_bytes": "单张图片上限（字节）",
             "moderation_mode": "审核方式",
             "comments_enabled": "开放评论",
+            "video_uploads_enabled": "允许上传视频",
+            "x_references_enabled": "允许分享 X 来源",
+            "youtube_references_enabled": "允许分享 YouTube 来源",
         }
         help_texts = {
             "max_images_per_post": "可在 0 到 4 张之间调整；设为 0 会关闭内容配图。",
             "upload_max_bytes": "单张原图和安全处理后的 WebP 都必须小于此值，硬上限为 5 MB。",
+            "video_uploads_enabled": "只影响新视频上传；关闭后，已有视频仍可正常播放。",
+            "x_references_enabled": "只影响新来源分享；关闭后，已有 X 来源卡片仍会保留。",
+            "youtube_references_enabled": (
+                "只影响新来源分享；关闭后，已有 YouTube 来源卡片仍会保留。"
+            ),
         }
 
 
@@ -56,7 +67,21 @@ class SiteConfigurationAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        ("审核与功能", {"fields": ("moderation_mode", "comments_enabled")}),
+        (
+            "审核与互动",
+            {"fields": ("moderation_mode", "comments_enabled")},
+        ),
+        (
+            "发布能力",
+            {
+                "description": "这些开关只控制新内容，关闭后不会删除已有内容。",
+                "fields": (
+                    "video_uploads_enabled",
+                    "x_references_enabled",
+                    "youtube_references_enabled",
+                ),
+            },
+        ),
         (
             "版本",
             {"fields": ("version_display", "created_at_display", "updated_at_display")},

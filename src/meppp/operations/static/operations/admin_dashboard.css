@@ -32,6 +32,26 @@
   color: var(--body-quiet-color);
 }
 
+.operations-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.operations-switches span {
+  padding: 5px 9px;
+  color: var(--body-quiet-color);
+  background: var(--darkened-bg);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.operations-switches span.is-on {
+  color: var(--link-fg);
+  background: var(--selected-bg);
+}
+
 .operations-links {
   display: grid;
   padding: 0;

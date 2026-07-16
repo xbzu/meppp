@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
@@ -18,6 +21,7 @@ from meppp.configuration.models import (
     RegistrationMode,
     SiteConfiguration,
 )
+from meppp.external.models import MetadataStatus
 from meppp.moderation.models import Report
 from meppp.publishing.models import ContentState, Entry, Topic
 
@@ -40,6 +44,47 @@ def browser_image_payload(
     Image.new("RGB", size, color).save(content, format=image_format)
     mime_type = "image/png" if image_format == "PNG" else "image/jpeg"
     return {"name": name, "mimeType": mime_type, "buffer": content.getvalue()}
+
+
+def browser_video_payload():
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        destination = Path(temporary_directory, "clip.mp4")
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=blue:s=96x64:r=10:d=0.6",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=0.6",
+                "-shortest",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-movflags",
+                "+faststart",
+                str(destination),
+            ],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            check=False,
+            shell=False,
+            timeout=20,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.decode(errors="replace"))
+        return {"name": "clip.mp4", "mimeType": "video/mp4", "buffer": destination.read_bytes()}
 
 
 class PublicUiBrowserTests(StaticLiveServerTestCase):
@@ -151,6 +196,8 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page.locator(".paopao-shell")).to_be_visible()
         expect(self.page.locator(".stream-panel")).to_be_visible()
         expect(self.page.get_by_text("小社区不需要追赶每一种功能")).to_be_visible()
+        expect(self.page.get_by_role("link", name="免费注册")).to_be_visible()
+        expect(self.page.get_by_text("免费注册后可发文字", exact=False)).to_be_visible()
         self.page.screenshot(path=RESULTS_DIR / "public-home-desktop.png", full_page=True)
         rightbar_search = self.page.locator(".rightbar-search")
         rightbar_search.get_by_label("搜索社区").fill("小社区")
@@ -200,6 +247,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_role("link", name="写一条").click()
         self.page.wait_for_load_state("networkidle")
         self.page.get_by_label("正文").fill("浏览器验证：这是一条由真实成员流程发布的内容。")
+        self.page.get_by_role("link", name="话题", exact=True).click()
         self.page.get_by_label("独立网络").check()
         self.page.get_by_role("button", name="发布内容").click()
         self.page.wait_for_load_state("networkidle")
@@ -218,9 +266,18 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
 
     def test_member_can_publish_four_safe_images_on_mobile(self):
         self.login("lin")
-        self.page.get_by_role("link", name="写一条").click()
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        image_entry = self.page.get_by_role("link", name="发布图片")
+        expect(image_entry).to_be_visible()
+        self.page.screenshot(path=RESULTS_DIR / "member-home-mobile.png", full_page=True)
+        image_entry.click()
         self.page.wait_for_load_state("networkidle")
-        self.page.get_by_label("正文").fill("四张配图也保持轻量、清楚和可访问。")
+        expect(self.page).to_have_url(re.compile(r"/write/\?compose=image$"))
+        self.assertEqual(self.page.evaluate("window.scrollY"), 0)
+        expect(self.page.get_by_role("navigation", name="选择发布方式")).to_be_visible()
+        expect(self.page.locator("#composer-images")).to_be_visible()
+        expect(self.page.locator("#composer-video")).to_be_hidden()
+        expect(self.page.locator("#composer-source")).to_be_hidden()
         payloads = [
             browser_image_payload(name="one.jpg", color="firebrick"),
             browser_image_payload(name="two.png", color="navy", image_format="PNG"),
@@ -249,7 +306,9 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         for index, value in enumerate(("红色记录", "蓝色记录", "", "紫色记录")):
             self.page.locator("[data-image-alt]").nth(index).fill(value)
 
-        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.page.evaluate("window.scrollTo(0, 0)")
+        self.page.screenshot(path=RESULTS_DIR / "composer-images-mobile.png", full_page=True)
+
         self.assertTrue(
             self.page.locator("html").evaluate(
                 "element => element.scrollWidth <= element.clientWidth"
@@ -261,7 +320,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page).to_have_url(re.compile(r"/entry/[0-9a-f-]+/"))
         expect(self.page.locator(".media-count-4")).to_be_visible()
         expect(self.page.locator("[data-entry-image]")).to_have_count(4)
-        published_entry = Entry.objects.get(body="四张配图也保持轻量、清楚和可访问。")
+        published_entry = Entry.objects.get(author=self.author, body="")
         attachment_evidence = []
         for attachment in published_entry.attachments.all():
             expected_name = f"entries/{published_entry.public_id}/{attachment.public_id}.webp"
@@ -296,6 +355,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_role("link", name="写一条").click()
         self.page.wait_for_load_state("networkidle")
         self.page.get_by_label("正文").fill("极窄竖图也应完整展示。")
+        self.page.get_by_role("link", name="图片", exact=True).click()
         self.page.get_by_label("选择图片").set_input_files(
             browser_image_payload(
                 name="portrait.jpg",
@@ -352,7 +412,19 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page.locator("#id_registration_mode")).to_be_visible()
         expect(self.page.locator("#id_moderation_mode")).to_be_visible()
         expect(self.page.locator("#id_comments_enabled")).to_be_visible()
+        expect(self.page.locator("#id_video_uploads_enabled")).to_be_visible()
+        expect(self.page.locator("#id_x_references_enabled")).to_be_visible()
+        expect(self.page.locator("#id_youtube_references_enabled")).to_be_visible()
         self.page.screenshot(path=RESULTS_DIR / "admin-configuration-desktop.png", full_page=True)
+
+        SiteConfiguration.objects.filter(pk=1).update(x_references_enabled=False)
+        self.page.goto(f"{self.live_server_url}/write/?compose=x")
+        expect(self.page.locator('[data-composer-shortcut="x"]')).to_have_count(0)
+        expect(self.page.locator('[data-composer-shortcut="text"]')).to_have_attribute(
+            "aria-current", "true"
+        )
+        expect(self.page.locator("#composer-source")).to_be_hidden()
+        self.assertEqual(self.page.evaluate("window.scrollY"), 0)
         self.assert_browser_clean()
 
     def test_invited_member_moderation_and_withdrawal_complete_operator_loop(self):
@@ -408,6 +480,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
 
         self.page.get_by_role("link", name="写一条").click()
         self.page.get_by_label("正文").fill("邀请制审核闭环：这条内容先进入待审队列。")
+        self.page.get_by_role("link", name="图片", exact=True).click()
         self.page.get_by_label("选择图片").set_input_files(
             browser_image_payload(name="review.jpg", color="darkgreen")
         )
@@ -542,11 +615,23 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page.locator("#mobile-search")).to_be_visible()
         self.assert_browser_clean()
 
-    def test_member_can_import_an_attributed_x_reference_without_remote_media_download(self):
+    def test_member_can_share_an_attributed_x_reference_without_remote_media_download(self):
         self.login("lin")
-        self.page.get_by_role("link", name="写一条").click()
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.page.get_by_role("link", name="分享 X 来源").click()
         self.page.wait_for_load_state("networkidle")
-        self.page.get_by_label("导入 X / YouTube").fill("https://x.com/i/status/20")
+        source_input = self.page.get_by_label("分享 X / YouTube 来源")
+        expect(source_input).not_to_be_focused()
+        self.assertEqual(self.page.evaluate("window.scrollY"), 0)
+        expect(self.page.locator("#composer-images")).to_be_hidden()
+        expect(self.page.locator("#composer-video")).to_be_hidden()
+        source_input.fill("https://x.com/")
+        expect(self.page.locator("[data-source-status]")).to_contain_text("尚未识别")
+        expect(self.page.locator("[data-source-status]")).to_have_class(re.compile("has-error"))
+        source_input.fill("https://x.com/i/status/20")
+        expect(self.page.get_by_text("已识别为 X Post", exact=False)).to_be_visible()
+        self.page.evaluate("window.scrollTo(0, 0)")
+        self.page.screenshot(path=RESULTS_DIR / "composer-source-mobile.png", full_page=True)
         with patch(
             "meppp.web.views.refresh_external_reference",
             side_effect=lambda reference: reference,
@@ -562,4 +647,81 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(imported.attachments.count(), 0)
         self.assertFalse(hasattr(imported, "video"))
         self.assertEqual(imported.external_reference.provider, "x")
+        self.assert_browser_clean()
+
+    def test_member_can_publish_a_real_video_only_post_on_mobile(self):
+        if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+            self.skipTest("FFmpeg tools are unavailable")
+        try:
+            payload = browser_video_payload()
+        except RuntimeError as error:
+            self.skipTest(f"FFmpeg cannot create the browser fixture: {error}")
+
+        self.login("lin")
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        video_entry = self.page.get_by_role("link", name="发布视频")
+        expect(video_entry).to_be_visible()
+        video_entry.click()
+        self.page.wait_for_load_state("networkidle")
+        expect(self.page).to_have_url(re.compile(r"/write/\?compose=video$"))
+
+        video_input = self.page.get_by_label("选择视频")
+        video_input.set_input_files(payload)
+        expect(self.page.locator("[data-video-preview]")).to_be_visible()
+        expect(self.page.locator("[data-video-status]")).to_contain_text("clip.mp4")
+        self.page.get_by_role("button", name="移除视频").click()
+        expect(self.page.locator("[data-video-preview]")).to_be_hidden()
+        video_input.set_input_files(payload)
+        self.page.evaluate("window.scrollTo(0, 0)")
+        self.page.screenshot(path=RESULTS_DIR / "composer-video-mobile.png", full_page=True)
+
+        self.page.get_by_role("button", name="发布内容").click()
+        self.page.wait_for_load_state("networkidle", timeout=30_000)
+        expect(self.page).to_have_url(re.compile(r"/entry/[0-9a-f-]+/"))
+        published_video = self.page.locator(".entry-video video")
+        expect(published_video).to_be_visible()
+        self.page.wait_for_function(
+            "document.querySelector('.entry-video video')?.readyState >= 1",
+            timeout=15_000,
+        )
+        entry = Entry.objects.get(author=self.author, body="")
+        self.assertTrue(hasattr(entry, "video"))
+        self.assert_browser_clean()
+
+    def test_member_can_share_a_youtube_source_with_recognition_and_official_embed(self):
+        def mark_ready(reference):
+            reference.title = "浏览器验证 YouTube 来源"
+            reference.author_name = "MEPPP 测试频道"
+            reference.metadata_status = MetadataStatus.READY
+            reference.save(update_fields=("title", "author_name", "metadata_status", "updated_at"))
+            return reference
+
+        self.context.route(
+            "https://www.youtube-nocookie.com/**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="text/html",
+                body="<!doctype html>",
+            ),
+        )
+        self.login("lin")
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.page.get_by_role("link", name="分享 YouTube 来源").click()
+        self.page.wait_for_load_state("networkidle")
+        source_input = self.page.get_by_label("分享 X / YouTube 来源")
+        source_input.fill("https://youtu.be/dQw4w9WgXcQ")
+        expect(self.page.get_by_text("已识别为 YouTube 视频", exact=False)).to_be_visible()
+
+        with patch("meppp.web.views.refresh_external_reference", side_effect=mark_ready):
+            self.page.get_by_role("button", name="发布内容").click()
+            self.page.wait_for_load_state("networkidle")
+
+        expect(self.page.get_by_text("浏览器验证 YouTube 来源")).to_be_visible()
+        expect(self.page.locator(".youtube-embed iframe")).to_have_attribute(
+            "src",
+            "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        )
+        expect(
+            self.page.get_by_role("link", name=re.compile("在 YouTube 查看原文"))
+        ).to_have_attribute("href", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         self.assert_browser_clean()

@@ -416,7 +416,7 @@ def entry_create(request):
             else:
                 validation_field = None
                 try:
-                    image_uploads = form.cleaned_data["images"]
+                    image_uploads = form.cleaned_data.get("images", [])
                     uploaded_video = form.cleaned_data.get("video")
                     if uploaded_video is not None:
                         try:
@@ -438,7 +438,7 @@ def entry_create(request):
                     validation_field = "images"
                     images = process_image_uploads(
                         uploads=image_uploads,
-                        alt_texts=form.cleaned_data["image_alt_texts"],
+                        alt_texts=form.cleaned_data.get("image_alt_texts", []),
                         max_bytes=form.maximum_image_bytes,
                     )
                     validation_field = "video"
@@ -464,14 +464,14 @@ def entry_create(request):
                         token=token,
                         images=images,
                         video=video,
-                        source_url=form.cleaned_data["source_url"],
+                        source_url=form.cleaned_data.get("source_url", ""),
                     )
                 except DuplicateSubmission:
                     form.add_error(None, "这个发布表单已经处理过，请刷新页面后再试。")
                 except ValidationError as error:
                     form.add_error(validation_field, error)
                 else:
-                    if form.cleaned_data["source_url"]:
+                    if form.cleaned_data.get("source_url"):
                         try:
                             refresh_external_reference(
                                 ExternalReference.objects.get(entry=entry),

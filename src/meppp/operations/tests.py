@@ -137,6 +137,10 @@ class OperationsDashboardTests(TestCase):
         self.assertEqual(snapshot.members_joined_seven_days, 3)
         self.assertEqual(snapshot.registration_mode, RegistrationMode.INVITE)
         self.assertEqual(snapshot.moderation_mode, ModerationMode.PREMODERATION)
+        self.assertTrue(snapshot.image_uploads_enabled)
+        self.assertTrue(snapshot.video_uploads_enabled)
+        self.assertTrue(snapshot.x_references_enabled)
+        self.assertTrue(snapshot.youtube_references_enabled)
 
     def test_operator_sees_dashboard_and_only_operator_quick_links(self):
         self.client.force_login(self.operator)
@@ -147,6 +151,7 @@ class OperationsDashboardTests(TestCase):
         self.assertContains(response, "运营总览")
         self.assertContains(response, "仅限邀请")
         self.assertContains(response, "发布前审核")
+        self.assertContains(response, "前台发布能力")
         link_labels = {link["label"] for link in response.context["quick_links"]}
         self.assertEqual(
             link_labels,

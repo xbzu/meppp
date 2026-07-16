@@ -38,7 +38,7 @@
           <div class="review-metadata-wide"><dt>原内容</dt><dd>{{ target.entry.body|truncatechars:180 }}</dd></div>
         {% endif %}
       </dl>
-      <div class="review-body">{{ target.body|linebreaksbr }}</div>
+      {% if target.body %}<div class="review-body">{{ target.body|linebreaksbr }}</div>{% endif %}
       {% if not is_comment and target.attachments.all %}
         <div class="review-media-grid" aria-label="待审内容配图">
           {% for attachment in target.attachments.all %}

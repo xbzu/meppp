@@ -35,6 +35,26 @@ class ConfigurationServiceTests(TestCase):
         )
         self.assertEqual(AuditEvent.objects.get().action, "configuration.updated")
 
+    def test_feature_switch_updates_are_versioned_in_the_configuration_snapshot(self):
+        configuration = update_configuration(
+            actor=self.actor,
+            changes={
+                "video_uploads_enabled": False,
+                "x_references_enabled": False,
+                "youtube_references_enabled": False,
+            },
+            reason="pause new media intake",
+        )
+
+        revision = ConfigurationRevision.objects.get(version=2)
+        self.assertFalse(configuration.video_uploads_enabled)
+        self.assertFalse(configuration.x_references_enabled)
+        self.assertFalse(configuration.youtube_references_enabled)
+        self.assertFalse(revision.snapshot["video_uploads_enabled"])
+        self.assertFalse(revision.snapshot["x_references_enabled"])
+        self.assertFalse(revision.snapshot["youtube_references_enabled"])
+        self.assertEqual(revision.reason, "pause new media intake")
+
     def test_revision_history_rejects_mutation(self):
         update_configuration(actor=self.actor, changes={"site_name": "My Community"})
         revision = ConfigurationRevision.objects.get(version=1)

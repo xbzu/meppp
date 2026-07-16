@@ -25,6 +25,10 @@ class OperationsSnapshot:
     registration_mode_label: str
     moderation_mode: str
     moderation_mode_label: str
+    image_uploads_enabled: bool
+    video_uploads_enabled: bool
+    x_references_enabled: bool
+    youtube_references_enabled: bool
 
 
 def _local_day_start(now: datetime) -> datetime:
@@ -69,4 +73,8 @@ def get_operations_snapshot(*, now: datetime | None = None) -> OperationsSnapsho
         registration_mode_label=configuration.get_registration_mode_display(),
         moderation_mode=configuration.moderation_mode,
         moderation_mode_label=configuration.get_moderation_mode_display(),
+        image_uploads_enabled=configuration.max_images_per_post > 0,
+        video_uploads_enabled=configuration.video_uploads_enabled,
+        x_references_enabled=configuration.x_references_enabled,
+        youtube_references_enabled=configuration.youtube_references_enabled,
     )

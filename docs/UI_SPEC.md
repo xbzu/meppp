@@ -1,14 +1,16 @@
 # Public UI specification
 
-## Direction: Quiet Ledger
+## Direction: Blue Commons
 
-MEPPP uses an independent “quiet community ledger” direction. It is built for reading, deliberate writing, and transparent chronological conversation rather than attention-maximising engagement.
+MEPPP uses an independent blue social-community interface built for quick discovery, lightweight publishing, and clear conversation. Its information architecture is informed by established three-column community patterns, including a high-level review of PaoPao CE, while every template, style, icon, word, and asset is independently implemented for MEPPP.
 
-- Warm paper background, dark ink, forest green, and a restrained ember accent.
-- Editorial display typography paired with a local Chinese sans-serif stack; no network fonts.
-- Horizontal masthead and a two-column desktop reading layout.
-- Entries are separated by rules and whitespace rather than floating social-media cards.
-- No gradients, glass effects, mascot, chat bubbles, infinite scroll, or copied interface assets.
+- Cobalt blue, airy blue-grey, white surfaces, dark navy text, and restrained violet/red state accents.
+- Local Chinese sans-serif stacks only; no network fonts or frontend framework dependency.
+- A compact global header plus a three-column desktop community layout: navigation, feed, and discovery.
+- The feed prioritises a visible composer, chronological entries, media, topics, and clear interaction actions.
+- Registration remains discoverable in every mode; the join page explains whether registration is open, invite-only, or temporarily closed.
+- Mobile uses a compact brand header and non-obscuring bottom navigation with safe-area spacing.
+- No copied logo, screenshots, source components, design tokens, sample content, or distinctive interface copy.
 - `MEPPP` is a configurable working name, not a permanently embedded product brand.
 
 ## Pages
@@ -27,11 +29,11 @@ MEPPP uses an independent “quiet community ledger” direction. It is built fo
 
 ## Responsive contract
 
-- `>= 960px`: reading column plus a 270px context rail.
-- `641–959px`: centred reading column; side sections become a second row.
-- `<= 640px`: one column, 16px page edges, compact horizontal navigation.
+- `>= 1121px`: 220px navigation, up to 680px feed, and 280px discovery rail.
+- `761–1120px`: centred feed; both contextual rails are hidden.
+- `<= 760px`: one column, 12px page edges, compact top actions, and safe-area bottom navigation.
 - Minimum interactive height is 44px where layout permits.
-- No fixed bottom navigation and no content-obscuring overlays.
+- Fixed mobile navigation reserves body space and never covers form actions or feed content.
 - Media layout is one-up, two-up, three with a spanning final image, or a two-by-two grid.
 
 ## Accessibility and safety
@@ -44,6 +46,6 @@ MEPPP uses an independent “quiet community ledger” direction. It is built fo
 - Entry images accept JPG, PNG and WebP input, provide accessible ordered previews, and are served only after server decoding and re-encoding. Empty alternative text is preserved for decorative images rather than replaced with noisy fallback text.
 - Avatar upload remains closed until replacement, retention and moderation behaviour are separately defined.
 
-## Clean-room boundary
+## Independent implementation boundary
 
-The UI is derived only from MEPPP’s own product stories and this specification. It does not use the reference project’s screenshots, DOM, CSS, copy, icons, assets, route layout, or design tokens.
+Reference products may be reviewed at a high level to identify general information architecture and usability patterns. MEPPP does not import their DOM, CSS, source components, text, icons, assets, design tokens, route identifiers, or data structures. The current Blue Commons implementation was written directly in Django templates and native CSS against MEPPP's existing product stories and security contracts.

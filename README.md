@@ -39,7 +39,7 @@ uv run python manage.py makemigrations --check --dry-run
 uv run coverage run manage.py test meppp
 uv run coverage report
 uv run python -m playwright install chromium
-uv run python manage.py test tests.browser
+MEPPP_TEST_DATABASE_PATH=/tmp/meppp-browser-tests.sqlite3 uv run python manage.py test tests.browser
 ```
 
 这些命令只安装开发依赖、检查源码并使用临时测试数据库，不会启动服务。
@@ -57,6 +57,7 @@ uv run python manage.py test tests.browser
 - [产品范围](docs/PRODUCT_SCOPE.md)
 - [架构](docs/ARCHITECTURE.md)
 - [UI 规范](docs/UI_SPEC.md)
+- [X / YouTube 链接分享路线](docs/EXTERNAL_SHARE_ROADMAP.md)
 - [运行与部署边界](docs/OPERATIONS.md)
 - [生产部署包](deploy/README.md)
 

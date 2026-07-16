@@ -5,6 +5,7 @@ MEPPP is a new implementation with its own repository history, requirements, dat
 ## Allowed inputs
 
 - General community and microblog product patterns.
+- High-level visual and behavioural review of public open-source interfaces, rewritten as neutral product requirements.
 - Independently written user stories and acceptance criteria.
 - Public standards and official framework documentation.
 - Behaviour observed at a high level, rewritten as neutral product requirements.
@@ -13,7 +14,7 @@ MEPPP is a new implementation with its own repository history, requirements, dat
 
 - Source code, generated code, comments, tests, fixtures, or build output from a reference project.
 - Database schemas, migrations, API paths, internal identifiers, or configuration files from a reference project.
-- Interface text, documentation prose, names, logos, icons, images, or other distinctive assets from a reference project.
+- Interface text, documentation prose, names, logos, icons, images, design tokens, or other distinctive assets from a reference project.
 - Git history, forks, submodules, vendored directories, or an upstream remote.
 
 ## Engineering rules

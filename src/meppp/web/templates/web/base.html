@@ -4,25 +4,23 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f2f3ed">
-    <meta name="description" content="{{ site_config.tagline|default:'一个安静、清晰、由成员共同维护的小型社区。' }}">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="{{ site_config.tagline|default:'一个轻松分享、友好连接的小型社区。' }}">
     <title>{% block title %}{{ site_config.site_name }}{% endblock %}</title>
     <link rel="icon" href="{% static 'web/img/mark.svg' %}" type="image/svg+xml">
     <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
     <script src="{% static 'web/js/app.js' %}" defer></script>
   </head>
-  <body>
+  <body class="{% block body_class %}{% endblock %}">
     <a class="skip-link" href="#main-content">跳到主要内容</a>
     <div class="page-shell">
       <header class="masthead">
         <div class="masthead-inner">
           <a class="brand" href="{% url 'web:home' %}" aria-label="{{ site_config.site_name }} 首页">
-            <span class="brand-mark" aria-hidden="true">
-              <span></span><span></span><span></span>
-            </span>
+            <span class="brand-mark" aria-hidden="true"><span>M</span></span>
             <span class="brand-copy">
               <strong>{{ site_config.site_name }}</strong>
-              <small>COMMUNITY LEDGER · 01</small>
+              <small>分享 · 连接 · 发现</small>
             </span>
           </a>
 
@@ -32,8 +30,8 @@
             <button type="submit">搜索</button>
           </form>
 
-          <nav class="primary-nav" aria-label="主要导航">
-            <a href="{% url 'web:home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}>动态</a>
+          <nav class="primary-nav {% if request.user.is_authenticated %}is-authenticated{% else %}is-guest{% endif %}" aria-label="主要导航">
+            <a href="{% url 'web:home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}>首页</a>
             {% if request.user.is_authenticated %}
               <a href="{% url 'web:entry-create' %}"{% if request.resolver_match.url_name == 'entry-create' %} aria-current="page"{% endif %}>写一条</a>
               <a class="notification-link" href="{% url 'web:notifications' %}"{% if request.resolver_match.url_name == 'notifications' %} aria-current="page"{% endif %}>
@@ -48,7 +46,7 @@
               </form>
             {% else %}
               <a href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">登录</a>
-              {% if site_config.registration_mode == 'open' or site_config.registration_mode == 'invite' %}<a class="nav-join" href="{% url 'web:register' %}">{% if site_config.registration_mode == 'invite' %}凭邀请加入{% else %}加入{% endif %}</a>{% endif %}
+              <a class="nav-join" href="{% url 'web:register' %}">{% if site_config.registration_mode == 'invite' %}邀请注册{% else %}注册{% endif %}</a>
             {% endif %}
           </nav>
         </div>
@@ -64,9 +62,37 @@
         {% block content %}{% endblock %}
       </main>
 
+      <nav class="mobile-nav" aria-label="手机导航">
+        <a href="{% url 'web:home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>首页</span>
+        </a>
+        <a href="{% url 'web:home' %}#mobile-discovery">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg><span>发现</span>
+        </a>
+        {% if request.user.is_authenticated %}
+          <a class="mobile-create" href="{% url 'web:entry-create' %}" aria-label="发布新动态">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>发布</span>
+          </a>
+          <a href="{% url 'web:notifications' %}"{% if request.resolver_match.url_name == 'notifications' %} aria-current="page"{% endif %}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8.5h18C21 16 18 16 18 9ZM10 21h4"/></svg><span>通知</span>
+            {% if unread_notification_count %}<span class="mobile-notification-count">{{ unread_notification_count }}</span>{% endif %}
+          </a>
+          <a href="{% url 'web:member-dashboard' %}"{% if request.resolver_match.url_name == 'member-dashboard' or request.resolver_match.url_name == 'member-settings' or request.resolver_match.url_name == 'member-password' %} aria-current="page"{% endif %}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg><span>我的</span>
+          </a>
+        {% else %}
+          <a href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5M14 8l4 4-4 4M8 12h10"/></svg><span>登录</span>
+          </a>
+          <a class="mobile-create" href="{% url 'web:register' %}" aria-label="注册 MEPPP">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>注册</span>
+          </a>
+        {% endif %}
+      </nav>
+
       <footer class="site-footer">
-        <p><strong>{{ site_config.site_name }}</strong> · 清晰表达，友善讨论。</p>
-        <p>独立实现的轻量社区 · <a href="{% url 'web:home' %}">返回动态</a></p>
+        <p><strong>{{ site_config.site_name }}</strong> · 分享新鲜事，遇见同路人。</p>
+        <p><a href="{% url 'web:community-rules' %}">社区公约</a> · <a href="{% url 'web:privacy-notice' %}">隐私说明</a> · <a href="{% url 'web:home' %}">返回首页</a></p>
       </footer>
     </div>
   </body>

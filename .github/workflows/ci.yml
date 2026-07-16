@@ -148,12 +148,12 @@ jobs:
             --header 'X-Forwarded-Proto: https' \
             --header 'X-Real-IP: 198.51.100.10' \
             http://127.0.0.1:18080/
-          grep --fixed-strings "COMMUNITY LEDGER · 01" /tmp/meppp-homepage.html
+          grep --fixed-strings "分享 · 连接 · 发现" /tmp/meppp-homepage.html
           curl --fail --silent --output /tmp/meppp-app.css \
             --header 'Host: meppp.com' \
             --header 'X-Forwarded-Proto: https' \
             --header 'X-Real-IP: 198.51.100.10' \
             http://127.0.0.1:18080/static/web/css/app.css
-          grep --fixed-strings -- "--paper: #f2f3ed;" /tmp/meppp-app.css
+          grep --fixed-strings -- "--primary: #2563eb;" /tmp/meppp-app.css
           docker exec "$container_id" sh -c \
             'if touch /app/.write-test 2>/dev/null; then exit 1; fi; touch /data/.write-test /tmp/.write-test; rm /data/.write-test /tmp/.write-test'

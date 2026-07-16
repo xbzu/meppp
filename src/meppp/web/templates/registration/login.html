@@ -1,23 +1,30 @@
 {% extends 'web/base.html' %}
+{% block body_class %}auth-page{% endblock %}
 {% block title %}成员登录 · {{ site_config.site_name }}{% endblock %}
 {% block content %}
   <div class="auth-layout">
     <section class="auth-copy">
-      <p class="eyebrow">MEMBER ACCESS</p>
-      <h1>回到正在发生的讨论</h1>
-      <p>没有算法追赶，也没有必须完成的红点。登录只是为了继续写、继续回应。</p>
-      <div class="auth-quote"><span aria-hidden="true">“</span><p>慢一点表达，通常会更接近真正想说的话。</p></div>
+      <p class="eyebrow">WELCOME BACK</p>
+      <h1>回来看看，今天有什么新鲜事。</h1>
+      <p>继续关注熟悉的人，接着聊上次没有说完的话。</p>
+      <ul class="auth-benefits">
+        <li><span aria-hidden="true">01</span>发布文字与图片动态</li>
+        <li><span aria-hidden="true">02</span>关注成员和感兴趣的话题</li>
+        <li><span aria-hidden="true">03</span>收到评论、点赞与审核通知</li>
+      </ul>
+      <div class="auth-quote"><span aria-hidden="true">M</span><p>让社区回到人与人之间真实、轻松的连接。</p></div>
     </section>
     <section class="auth-card" aria-labelledby="login-title">
+      <p class="auth-card-kicker">MEPPP ACCOUNT</p>
       <h2 id="login-title">成员登录</h2>
-      <p>使用用户名和密码进入。</p>
+      <p>使用用户名和密码回到社区。</p>
       <form method="post" class="stacked-form" novalidate>
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ next }}">
         {% include 'web/_form_fields.html' with form=form only %}
         <button class="button-primary button-block" type="submit">登录</button>
       </form>
-      {% if site_config.registration_mode == 'open' %}<p class="auth-switch">还不是成员？<a href="{% url 'web:register' %}">创建账号</a></p>{% endif %}
+      <p class="auth-switch">还不是成员？<a href="{% url 'web:register' %}">{% if site_config.registration_mode == 'invite' %}使用邀请码注册{% elif site_config.registration_mode == 'open' %}免费创建账号{% else %}查看注册状态{% endif %}</a></p>
     </section>
   </div>
 {% endblock %}

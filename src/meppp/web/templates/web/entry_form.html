@@ -4,9 +4,9 @@
   <div class="form-layout">
     <section class="form-surface" aria-labelledby="composer-title">
       <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回动态</a>
-      <p class="eyebrow">NEW PUBLIC NOTE</p>
-      <h1 id="composer-title">写一条值得留下的内容</h1>
-      <p class="form-lead">文字是主体，图片负责补充现场和细节。上传后的图片会移除设备信息并统一安全处理。</p>
+      <p class="eyebrow">SHARE SOMETHING</p>
+      <h1 id="composer-title">发布一条新动态</h1>
+      <p class="form-lead">分享想法、见闻或一组照片。图片上传后会移除设备信息并统一安全处理。</p>
       <form method="post" enctype="multipart/form-data" class="stacked-form" novalidate>
         {% csrf_token %}
         {% include 'web/_form_fields.html' with form=form only %}
@@ -21,12 +21,12 @@
       </form>
     </section>
     <aside class="form-aside" aria-label="写作提示">
-      <p class="section-index">WRITING NOTE</p>
-      <h2>先说结论，再补上下文</h2>
+      <p class="section-index">POSTING TIPS</p>
+      <h2>让别人更容易接住你的话</h2>
       <ul>
-        <li>一条内容尽量只讨论一件事。</li>
-        <li>区分亲历、推测和引用信息。</li>
-        <li>给别人留下继续讨论的空间。</li>
+        <li>一条动态聚焦一件新鲜事。</li>
+        <li>引用信息时补充来源和上下文。</li>
+        <li>配图可填写替代文字，阅读更友好。</li>
       </ul>
     </aside>
   </div>

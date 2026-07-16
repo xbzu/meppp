@@ -23,6 +23,8 @@
     <string>/ABSOLUTE/PATH/TO/DEDICATED-READ-ONLY-KEY</string>
     <key>MEPPP_BACKUP_KNOWN_HOSTS</key>
     <string>/ABSOLUTE/PATH/TO/known_hosts</string>
+    <key>MEPPP_BACKUP_LOCK_FILE</key>
+    <string>/ABSOLUTE/PATH/TO/PRIVATE/CACHE/meppp-offsite-backup.lock</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>

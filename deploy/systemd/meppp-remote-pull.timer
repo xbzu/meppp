@@ -1,0 +1,12 @@
+[Unit]
+Description=Pull the daily MEPPP backup to an independent server
+
+[Timer]
+OnCalendar=*-*-* 02:45:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=2m
+AccuracySec=1m
+Unit=meppp-remote-pull.service
+
+[Install]
+WantedBy=timers.target

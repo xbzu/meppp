@@ -1,0 +1,12 @@
+[Unit]
+Description=Check MEPPP remote backup health every hour
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=5m
+AccuracySec=1m
+Unit=meppp-remote-monitor.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Mark a failed MEPPP remote backup pull
+
+[Service]
+Type=oneshot
+User=meppp-backup
+Group=meppp-backup
+UMask=0077
+ExecStart=/usr/bin/touch /srv/backups/meppp.com/LAST_FAILURE
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/backups/meppp.com

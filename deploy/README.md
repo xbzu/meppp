@@ -41,7 +41,7 @@ Before the first start, validate the fixed subnet (`172.30.89.0/28`) against eve
 
 ## Docker Compose compatibility gate
 
-The target currently has Docker Engine but no Compose/buildx CLI plugins. Before deployment, install the pinned Compose `v2.40.3` plugin with its official release checksum:
+The target currently has Docker Engine but no Compose/buildx CLI plugins. Before deployment, install the pinned Compose `v2.40.3` plugin with its official release checksum. The default system-wide plugin path remains visible to hardened systemd jobs that intentionally hide `/root`:
 
 ```bash
 cd /opt/meppp && sh ./deploy/install_compose_plugin.sh
@@ -55,8 +55,8 @@ Build without assuming a buildx plugin, then prove the immutable image exists:
 
 ```bash
 cd /opt/meppp
-DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.2 .
-docker image inspect meppp:v0.1.0-rc.2 >/dev/null
+DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.3 .
+docker image inspect meppp:v0.1.0-rc.3 >/dev/null
 docker compose up --detach --no-build --wait app
 ```
 
@@ -132,5 +132,9 @@ systemctl start meppp-backup-prepare.service
 ```
 
 Give the Mac a dedicated read-only SSH key whose server-side `authorized_keys` entry is restricted to `/srv/meppp/data` with `rrsync`, then install the machine-specific copy of `deploy/macos/com.meppp.offsite-backup.plist.example`. Create the destination directory on the external volume first, and fill in the external volume UUID and paths before loading it. `deploy/macos/meppp-offsite-pull.sh` refuses a missing directory, the wrong or missing volume, or a destination outside that volume; it never uses `--delete`, verifies the copied database and media manifests, and marks success only while the newest database is under 26 hours old.
+
+macOS may deny an unattended LaunchAgent access to a removable volume even when the same script succeeds interactively. Treat `Operation not permitted` as a failed automation gate; do not claim the LaunchAgent is working from the manual run. Without changing macOS privacy settings, install `deploy/remote/meppp-remote-pull.sh` on an independently hosted Linux server instead. Its systemd service passes the source key through `LoadCredential`, pulls through the same source-side read-only `rrsync` restriction, verifies database/media checksums and freshness, never deletes old copies, and writes `LAST_SUCCESS` only after every check passes. Enable the matching `meppp-remote-monitor.timer` only after the first pull succeeds; it checks freshness and manifests hourly and leaves a visible failure marker for the control plane.
+
+Debian 11's older `rrsync` does not recognize the harmless `--dirs` spelling emitted by current macOS rsync. Install `deploy/rrsync/meppp-rrsync-compat.sh` as `/usr/local/sbin/meppp-rrsync` and use that exact path in the forced command when this compatibility error is proven. The wrapper maps only `--dirs` to the equivalent `-d`; the distribution `rrsync` still enforces every read-only, path, and option check.
 
 The Nginx template intentionally has no public `/media/` alias. Images pass through the state-aware application route so pending, hidden, withdrawn, or inactive-author media cannot be fetched directly. Do not schedule the backup task until the destination mount and its monitoring are proven. See `docs/OPERATIONS.md` for retention, media reconciliation, restore drills, and attended recovery.

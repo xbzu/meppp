@@ -3,7 +3,7 @@ set -eu
 umask 077
 
 version="v2.40.3"
-plugin_dir="${DOCKER_CLI_PLUGIN_DIR:-/root/.docker/cli-plugins}"
+plugin_dir="${DOCKER_CLI_PLUGIN_DIR:-/usr/local/lib/docker/cli-plugins}"
 target="$plugin_dir/docker-compose"
 
 case "$(uname -m)" in
@@ -28,7 +28,7 @@ fi
 
 command -v curl >/dev/null
 command -v sha256sum >/dev/null
-install -d -m 700 "$plugin_dir"
+install -d -m 755 "$plugin_dir"
 temporary=$(mktemp "$plugin_dir/.docker-compose.XXXXXX")
 cleanup() {
     rm -f "$temporary"

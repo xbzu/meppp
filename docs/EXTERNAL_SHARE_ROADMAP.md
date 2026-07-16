@@ -1,40 +1,28 @@
-# External share roadmap
+# X / YouTube attributed import
 
-MEPPP will support sharing public X and YouTube links as attributed community cards. The product goal is “bring a link into a draft, add your own context, then confirm publication” rather than automatic copying or cross-platform reposting.
+MEPPP implements external sharing as an attributed reference card: a member pastes a public X Post or YouTube video URL, optionally adds original context, reviews the normal publishing form, and confirms publication. It is deliberately not a third-party media downloader or automatic cross-platform repost bot.
 
-## Phase 1 — safe link cards
+## Implemented contract
 
-- Add one optional `EntryLink` to an entry with `provider`, `canonical_url`, `external_id`, and metadata status.
-- Accept only recognised X status and YouTube watch/shorts/youtu.be path shapes, extract the public content ID, and rebuild the canonical HTTPS URL locally.
-- Reject userinfo, non-443 ports, fragments, overlong URLs, malformed IDs, and every host or path outside the explicit allowlist.
-- Do not fetch a remote page during publication; the first card shows provider, canonical URL, and external ID.
-- Keep the existing entry moderation, nonce, and withdrawal boundaries around the card; add a non-sensitive audit event only if the link feature defines and tests one explicitly.
-- Render external links with `rel="ugc nofollow noreferrer noopener"`.
-
-Acceptance: a member can paste a supported URL, add original commentary, preview the attributed card, confirm publication, and later withdraw the entry. Unsupported URLs fail with a clear form error.
-
-## Phase 2 — official metadata
-
-- Resolve titles, creator names, thumbnails, and publish times only through official APIs or oEmbed endpoints.
-- Process metadata outside the publication request with strict host allowlists, timeouts, redirect limits, and response-size limits. Revalidate the host and resolved IP after every redirect, and reject private, loopback, link-local, reserved, and otherwise non-public address ranges.
-- Store structured fields only; do not retain raw HTML, comments, full post text, or video files.
-- Use a MEPPP-owned card rather than a third-party iframe unless the CSP and privacy contract are reviewed separately. Do not hotlink or cache remote thumbnails until the relevant platform terms, rights, and privacy handling have passed review.
-
-## Phase 3 — one-click entry points
-
-- A bookmark action or browser extension first recognises a supported platform, extracts its public ID, removes fragments and tracking parameters, and then opens `/write/?url=<canonical-public-url>`.
-- A later PWA Share Target provides the same prefilled draft flow on mobile.
-- The member must still be logged in, review the source card, add context, and press the normal publish button.
-
-## Phase 4 — optional account connectors
-
-OAuth is only considered after the provider's current official API is verified to expose a user-selected collection. The flow requires `state`, PKCE where supported, exact callback allowlists, the smallest read-only scope, encrypted token storage, log redaction, key rotation, revocation, and a separate configuration/audit boundary. Connector failure must never block ordinary community publishing.
+- One optional `ExternalReference` is bound one-to-one to an entry and follows the entry's moderation and withdrawal lifecycle.
+- Only exact X and YouTube host/path shapes are accepted. MEPPP extracts the public ID locally and rebuilds a canonical HTTPS URL; userinfo, non-443 ports, fragments, malformed IDs and every other host are rejected.
+- The server requests metadata only from fixed `publish.x.com` and `www.youtube.com` HTTPS endpoints with a four-second timeout, a 128 KiB response cap and no redirects. A user-supplied host is never requested.
+- X oEmbed HTML is parsed into bounded plain text; raw provider HTML and scripts are not stored or rendered.
+- YouTube playback uses `youtube-nocookie.com` only after official metadata verification. X cards remain first-party HTML with an attributed source link.
+- Every outbound source link uses `rel="ugc nofollow noreferrer noopener"`; attribution and the canonical source URL stay visible.
+- Due metadata is refreshed in bounded batches by `refresh_external_references` and the optional fifteen-minute systemd timer. Unavailable content stops showing its preview.
+- `/write/?url=<supported-url>` pre-fills a normal draft. Authentication and the final publish button remain mandatory.
 
 ## Product boundaries
 
-- No automatic download or re-upload of X/YouTube media.
-- No background publishing to MEPPP without member confirmation.
-- No generic server-side URL fetcher or arbitrary redirect following.
-- Attribution and the canonical source link stay visible on every external card.
+- No automatic download, storage or re-upload of X/YouTube media.
+- No background publishing without the member's confirmation.
+- No generic server-side URL fetcher, arbitrary redirect following or remote thumbnail hotlinking.
+- No X account cookie, Susan's private login, or OAuth token is required.
+- Self-uploaded local media is a separate path and the member is told that upload means they own or are authorised to use it.
 
-Status: planned. This UI release exposes only a labelled roadmap note; it does not present a non-functional import button as a completed feature.
+## Later, only if justified
+
+A browser share extension or PWA Share Target may open the existing prefilled draft route. OAuth connectors are considered only after the provider's then-current official API supports a user-selected collection and the implementation has PKCE/state, minimal read-only scope, encrypted token storage, revocation, audit and key-rotation boundaries.
+
+Status: implemented in `v0.1.0-rc.6`; full third-party media copying remains deliberately out of scope.

@@ -5,6 +5,10 @@ from django.db import models
 
 from meppp.common.models import AppendOnlyPublicModel, PublicModel
 
+MAX_VIDEO_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_VIDEO_DURATION_MS = 5 * 60 * 1000
+MAX_VIDEO_POSTER_BYTES = 2 * 1024 * 1024
+
 
 class ContentState(models.TextChoices):
     PENDING = "pending", "待审核"
@@ -294,3 +298,95 @@ class Attachment(PublicModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Attachments must follow the entry lifecycle")
+
+
+class VideoMimeType(models.TextChoices):
+    MP4 = "video/mp4", "MP4"
+    WEBM = "video/webm", "WebM"
+
+
+def video_upload_path(instance, filename: str) -> str:
+    del filename
+    extension = ".mp4" if instance.mime_type == VideoMimeType.MP4 else ".webm"
+    return f"entries/{instance.entry.public_id}/{instance.public_id}{extension}"
+
+
+def video_poster_upload_path(instance, filename: str) -> str:
+    del filename
+    return f"entries/{instance.entry.public_id}/{instance.public_id}-poster.webp"
+
+
+class VideoAssetQuerySet(models.QuerySet):
+    def delete(self):
+        raise ValidationError("Video assets must follow the entry lifecycle")
+
+    def _raw_delete(self, using):
+        raise ValidationError("Video assets must follow the entry lifecycle")
+
+
+class VideoAsset(PublicModel):
+    entry = models.OneToOneField(Entry, on_delete=models.CASCADE, related_name="video")
+    file = models.FileField(
+        upload_to=video_upload_path,
+        validators=[FileExtensionValidator(["mp4", "webm"])],
+    )
+    poster = models.FileField(
+        upload_to=video_poster_upload_path,
+        validators=[FileExtensionValidator(["webp"])],
+    )
+    mime_type = models.CharField(max_length=10, choices=VideoMimeType, editable=False)
+    byte_size = models.PositiveIntegerField(editable=False)
+    poster_byte_size = models.PositiveIntegerField(editable=False)
+    duration_ms = models.PositiveIntegerField(editable=False)
+    width = models.PositiveIntegerField(editable=False)
+    height = models.PositiveIntegerField(editable=False)
+
+    objects = VideoAssetQuerySet.as_manager()
+
+    class Meta:
+        base_manager_name = "objects"
+        ordering = ["created_at", "pk"]
+        verbose_name = "视频附件"
+        verbose_name_plural = "视频附件"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(byte_size__gt=0, byte_size__lte=MAX_VIDEO_UPLOAD_BYTES),
+                name="publishing_video_size_within_cap",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    poster_byte_size__gt=0,
+                    poster_byte_size__lte=MAX_VIDEO_POSTER_BYTES,
+                ),
+                name="publishing_video_poster_size_within_cap",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(duration_ms__gt=0, duration_ms__lte=MAX_VIDEO_DURATION_MS),
+                name="publishing_video_duration_within_cap",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(width__gt=0),
+                name="publishing_video_width_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(height__gt=0),
+                name="publishing_video_height_positive",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(mime_type=VideoMimeType.MP4, file__endswith=".mp4")
+                    | models.Q(mime_type=VideoMimeType.WEBM, file__endswith=".webm")
+                ),
+                name="publishing_video_mime_matches_file",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(poster__endswith="-poster.webp"),
+                name="publishing_video_poster_webp",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return str(self.entry_id)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Video assets must follow the entry lifecycle")

@@ -11,7 +11,7 @@ def public_entries(*, viewer=None):
     queryset = (
         Entry.objects.public()
         .filter(author__is_active=True)
-        .select_related("author", "author__profile")
+        .select_related("author", "author__profile", "video", "external_reference")
         .prefetch_related("topics", "attachments")
         .annotate(
             like_count=Count("likes", distinct=True),

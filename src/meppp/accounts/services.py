@@ -4,6 +4,8 @@ import hashlib
 import secrets
 from datetime import datetime
 
+from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -12,12 +14,16 @@ from django.views.decorators.debug import sensitive_variables
 from meppp.audit.services import record_event
 from meppp.configuration.models import RegistrationMode, SiteConfiguration
 
-from .models import Invitation, User
+from .models import Invitation, RecoveryCredential, User
+from .normalization import normalize_username
 
 INVITATION_TOKEN_BYTES = 32
 INVITATION_HINT_LENGTH = 8
 MAX_INVITATION_REASON_LENGTH = 500
 INVITATION_UNAVAILABLE_MESSAGE = "邀请码无效、已失效或不适用于这个邮箱"
+RECOVERY_CODE_BYTES = 24
+RECOVERY_UNAVAILABLE_MESSAGE = "账号信息或恢复码无效"
+DUMMY_RECOVERY_DIGEST = make_password("invalid-recovery-code")
 
 
 def _normalize_email(value: str) -> str:
@@ -198,6 +204,10 @@ def register_member(
     if configuration.registration_mode == RegistrationMode.INVITE and not invitation_token.strip():
         raise ValidationError("请输入有效的邀请码")
 
+    email = _normalize_email(email)
+    if not email:
+        raise ValidationError("请输入有效邮箱")
+
     user = User.objects.create_user(
         username=username,
         email=email,
@@ -210,3 +220,85 @@ def register_member(
             claimed_by=user,
         )
     return user
+
+
+@sensitive_variables("plaintext_code")
+def issue_recovery_code(*, user: User) -> str:
+    if user.pk is None or not user.is_active:
+        raise ValidationError("当前账号不能生成恢复码")
+    plaintext_code = secrets.token_urlsafe(RECOVERY_CODE_BYTES)
+    RecoveryCredential.objects.update_or_create(
+        user=user,
+        defaults={
+            "token_digest": make_password(plaintext_code),
+            "issued_at": timezone.now(),
+        },
+    )
+    record_event(
+        actor=user,
+        action="account.recovery_code.rotated",
+        target_type="user",
+        target_public_id=user.public_id,
+        metadata={"delivery": "display_once"},
+    )
+    return plaintext_code
+
+
+@sensitive_variables("password", "invitation_token", "plaintext_code")
+@transaction.atomic
+def register_member_with_recovery(
+    *,
+    username: str,
+    email: str,
+    password: str,
+    invitation_token: str = "",
+) -> tuple[User, str]:
+    user = register_member(
+        username=username,
+        email=email,
+        password=password,
+        invitation_token=invitation_token,
+    )
+    plaintext_code = issue_recovery_code(user=user)
+    return user, plaintext_code
+
+
+@sensitive_variables("recovery_code", "new_password", "replacement_code")
+@transaction.atomic
+def recover_account(
+    *,
+    username: str,
+    email: str,
+    recovery_code: str,
+    new_password: str,
+) -> tuple[User, str]:
+    normalized_username = normalize_username(username)
+    normalized_email = _normalize_email(email)
+    user = (
+        User.objects.select_for_update()
+        .filter(
+            username__iexact=normalized_username,
+            email__iexact=normalized_email,
+            is_active=True,
+        )
+        .select_related("recovery_credential")
+        .first()
+    )
+    credential = getattr(user, "recovery_credential", None) if user is not None else None
+    digest = credential.token_digest if credential is not None else DUMMY_RECOVERY_DIGEST
+    valid = bool(recovery_code.strip()) and check_password(recovery_code.strip(), digest)
+    if user is None or credential is None or not valid:
+        raise ValidationError(RECOVERY_UNAVAILABLE_MESSAGE)
+
+    validate_password(new_password, user=user)
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+    replacement_code = issue_recovery_code(user=user)
+    record_event(
+        actor=user,
+        action="account.password.recovered",
+        target_type="user",
+        target_public_id=user.public_id,
+        metadata={"recovery_code_rotated": True},
+    )
+    return user, replacement_code

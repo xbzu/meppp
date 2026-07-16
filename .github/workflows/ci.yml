@@ -46,6 +46,11 @@ jobs:
       - name: Verify image codec
         run: uv run python -c 'from PIL import features; assert features.check("webp"), "Pillow WebP support is required"'
 
+      - name: Verify video tools
+        run: |
+          ffmpeg -version
+          ffprobe -version
+
       - name: Run tests with coverage
         run: |
           uv run coverage run manage.py test meppp
@@ -122,6 +127,9 @@ jobs:
           MEPPP_IMAGE: meppp:ci
           MEPPP_TRUST_PROXY: "1"
           MEPPP_TRUSTED_PROXY_IPS: 172.30.89.1/32
+          MEPPP_MEDIA_MAX_TOTAL_BYTES: "1073741824"
+          MEPPP_MEMBER_DAILY_MEDIA_BYTES: "52428800"
+          MEPPP_MEMBER_PENDING_ENTRY_LIMIT: "3"
         run: |
           container_id=""
           cleanup() {
@@ -139,8 +147,12 @@ jobs:
             'from django.conf import settings; assert settings.SECURE_HSTS_SECONDS == 3600; assert not settings.SECURE_HSTS_INCLUDE_SUBDOMAINS; assert not settings.SECURE_HSTS_PRELOAD'
           docker exec "$container_id" python manage.py shell -c \
             'from django.contrib.auth.models import Group; assert set(Group.objects.values_list("name", flat=True)) == {"运营", "审核"}'
+          docker exec "$container_id" python manage.py shell -c \
+            'from django.conf import settings; assert settings.MEDIA_MAX_TOTAL_BYTES == 1073741824; assert settings.MEMBER_DAILY_MEDIA_BYTES == 52428800; assert settings.MEMBER_PENDING_ENTRY_LIMIT == 3'
           docker exec "$container_id" python -c \
             'from PIL import features; assert features.check("webp"), "Pillow WebP support is required"'
+          docker exec "$container_id" ffmpeg -version
+          docker exec "$container_id" ffprobe -version
           curl --fail --silent --header 'Host: meppp.com' \
             http://127.0.0.1:18080/health/ready
           curl --fail --silent --output /tmp/meppp-homepage.html \

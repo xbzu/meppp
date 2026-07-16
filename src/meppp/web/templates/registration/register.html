@@ -14,7 +14,7 @@
       </nav>
       {% if registration_available %}
         <h1 id="register-title">{% if registration_mode == 'invite' %}使用邀请加入{% else %}创建成员账号{% endif %}</h1>
-        <p class="auth-intro">{% if registration_mode == 'invite' %}输入管理员发给你的单次邀请码。{% else %}填写下面的信息，注册后会自动登录。{% endif %}</p>
+        <p class="auth-intro">{% if registration_mode == 'invite' %}输入管理员发给你的单次邀请码。{% else %}填写下面的信息，注册后会自动登录。{% endif %}完成后请保存一次性显示的账号恢复码。</p>
         <form method="post" class="stacked-form" novalidate>
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next }}">

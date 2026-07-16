@@ -157,6 +157,7 @@ INSTALLED_APPS = [
     "meppp.accounts.apps.AccountsConfig",
     "meppp.configuration.apps.ConfigurationConfig",
     "meppp.publishing.apps.PublishingConfig",
+    "meppp.external.apps.ExternalConfig",
     "meppp.social.apps.SocialConfig",
     "meppp.notifications.apps.NotificationsConfig",
     "meppp.audit.apps.AuditConfig",
@@ -261,8 +262,14 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "meppp-single-process",
-    }
+        "LOCATION": "meppp-rate-limits",
+        "OPTIONS": {"MAX_ENTRIES": 20_000, "CULL_FREQUENCY": 10},
+    },
+    "recovery_notices": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "meppp-recovery-notices",
+        "OPTIONS": {"MAX_ENTRIES": 2_000, "CULL_FREQUENCY": 10},
+    },
 }
 
 SECURE_MODE = env_bool("MEPPP_SECURE", IS_PRODUCTION)
@@ -306,11 +313,19 @@ if (
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_MEPPP_PROXY_PROTO", "https")
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1 * 1024 * 1024
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 24 * 1024 * 1024
 DATA_UPLOAD_MAX_NUMBER_FILES = 4
 FILE_UPLOAD_PERMISSIONS = 0o600
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
 MEDIA_MIN_FREE_BYTES = env_nonnegative_int("MEPPP_MEDIA_MIN_FREE_BYTES", 256 * 1024 * 1024)
+MEDIA_MAX_TOTAL_BYTES = env_nonnegative_int("MEPPP_MEDIA_MAX_TOTAL_BYTES", 20 * 1024**3)
+MEMBER_DAILY_MEDIA_BYTES = env_nonnegative_int(
+    "MEPPP_MEMBER_DAILY_MEDIA_BYTES",
+    100 * 1024**2,
+)
+MEMBER_PENDING_ENTRY_LIMIT = env_nonnegative_int("MEPPP_MEMBER_PENDING_ENTRY_LIMIT", 5)
+if not MEDIA_MAX_TOTAL_BYTES or not MEMBER_DAILY_MEDIA_BYTES or not MEMBER_PENDING_ENTRY_LIMIT:
+    raise ImproperlyConfigured("MEPPP media and pending-entry limits must be positive")
 
 LOG_LEVEL = os.getenv("MEPPP_LOG_LEVEL", "INFO").strip().upper()
 if LOG_LEVEL not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:

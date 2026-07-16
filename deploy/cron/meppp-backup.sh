@@ -51,9 +51,21 @@ if [ -n "$(find "$host_media_dir" -type l -print -quit)" ]; then
     echo "refusing media backup: symbolic link found" >&2
     exit 1
 fi
+if [ -n "$(find "$host_media_dir" -type f ! \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)" ]; then
+    echo "refusing media backup: unexpected media file found" >&2
+    exit 1
+fi
 
 offsite_media_dir="${offsite_dir}/media"
 mkdir -p "$offsite_media_dir"
+if [ -n "$(find "$offsite_media_dir" -type l -print -quit)" ]; then
+    echo "refusing media backup: offsite media contains a symbolic link" >&2
+    exit 1
+fi
+if [ -n "$(find "$offsite_media_dir" -type f ! \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)" ]; then
+    echo "refusing media backup: offsite media contains an unexpected file" >&2
+    exit 1
+fi
 
 if command -v rsync >/dev/null; then
     rsync -a --ignore-existing \
@@ -62,7 +74,7 @@ if command -v rsync >/dev/null; then
         --exclude='*' \
         "$host_backup_dir/" "$offsite_dir/"
     rsync -a --ignore-existing \
-        --include='*/' --include='*.webp' --exclude='*' \
+        --include='*/' --include='*.webp' --include='*.mp4' --include='*.webm' --exclude='*' \
         "$host_media_dir/" "$offsite_media_dir/"
 else
     for source in "$host_backup_dir"/meppp-*.sqlite3 \
@@ -73,7 +85,7 @@ else
             cp -p "$source" "$destination"
         fi
     done
-    find "$host_media_dir" -type f -name '*.webp' | while IFS= read -r source; do
+    find "$host_media_dir" -type f \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) | while IFS= read -r source; do
         relative=${source#"$host_media_dir"/}
         destination="${offsite_media_dir}/${relative}"
         mkdir -p "$(dirname "$destination")"
@@ -88,7 +100,7 @@ media_manifest="${snapshot_id}-media.sha256"
 media_manifest_tmp="${host_backup_dir}/.${media_manifest}.tmp"
 (
     cd "$host_media_dir"
-    find . -type f -name '*.webp' -print0 | sort -z | \
+    find . -type f \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print0 | sort -z | \
         xargs -0 -r sha256sum | sed 's#  \./#  media/#'
 ) > "$media_manifest_tmp"
 chmod 600 "$media_manifest_tmp"
@@ -114,7 +126,7 @@ if [ -s "${offsite_dir}/${media_manifest}" ]; then
         sha256sum --check "$media_manifest"
     )
 else
-    test -z "$(find "$offsite_media_dir" -type f -name '*.webp' -print -quit)"
+    test -z "$(find "$offsite_media_dir" -type f \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)"
 fi
 
 echo "MEPPP database and media backup, restore drill, independent copy, and checksum verification passed"

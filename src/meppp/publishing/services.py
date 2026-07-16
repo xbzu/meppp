@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from collections.abc import Iterable
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from meppp.audit.services import record_event
@@ -22,6 +25,8 @@ from meppp.notifications.services import notify
 
 from .image_processing import ProcessedImage
 from .models import (
+    MAX_VIDEO_DURATION_MS,
+    MAX_VIDEO_UPLOAD_BYTES,
     Attachment,
     Comment,
     ContentReviewDecision,
@@ -29,6 +34,14 @@ from .models import (
     ContentState,
     Entry,
     Topic,
+    VideoAsset,
+    VideoMimeType,
+)
+from .video_processing import (
+    MAX_VIDEO_EDGE,
+    MAX_VIDEO_PIXELS,
+    ProcessedVideo,
+    verify_poster_bytes,
 )
 
 MAX_CONTENT_REVIEW_REASON_LENGTH = 500
@@ -67,12 +80,72 @@ def cleanup_stored_files(stored_files: list[tuple]) -> None:
         logger.error("media cleanup failed for %d generated file(s)", cleanup_failures)
 
 
+def _media_bytes(*, author=None, created_on=None) -> int:
+    attachment_filters = {}
+    video_filters = {}
+    if author is not None:
+        attachment_filters["entry__author"] = author
+        video_filters["entry__author"] = author
+    if created_on is not None:
+        attachment_filters["entry__created_at__date"] = created_on
+        video_filters["entry__created_at__date"] = created_on
+    image_bytes = (
+        Attachment.objects.filter(**attachment_filters).aggregate(total=Sum("byte_size"))["total"]
+        or 0
+    )
+    video_totals = VideoAsset.objects.filter(**video_filters).aggregate(
+        video=Sum("byte_size"),
+        posters=Sum("poster_byte_size"),
+    )
+    return image_bytes + (video_totals["video"] or 0) + (video_totals["posters"] or 0)
+
+
+def _enforce_publish_capacity(*, author, state: str, new_media_bytes: int) -> None:
+    if (
+        state == ContentState.PENDING
+        and Entry.objects.filter(author=author, state=ContentState.PENDING).count()
+        >= settings.MEMBER_PENDING_ENTRY_LIMIT
+    ):
+        raise ValidationError("待审核内容已达到上限，请等待处理后再发布")
+    if new_media_bytes <= 0:
+        return
+
+    today = timezone.localdate()
+    if (
+        _media_bytes(author=author, created_on=today) + new_media_bytes
+        > settings.MEMBER_DAILY_MEDIA_BYTES
+    ):
+        raise ValidationError("今天上传的媒体已达到账号限额，请明天再试")
+    if _media_bytes() + new_media_bytes > settings.MEDIA_MAX_TOTAL_BYTES:
+        raise ValidationError("站点媒体容量已达到上限，请联系运营人员")
+    try:
+        free_bytes = shutil.disk_usage(settings.MEDIA_ROOT).free
+    except OSError as error:
+        raise ValidationError("暂时无法确认媒体存储空间") from error
+    if free_bytes - new_media_bytes < settings.MEDIA_MIN_FREE_BYTES:
+        raise ValidationError("站点媒体存储空间不足，请稍后再试")
+
+
+def preflight_publish_capacity(*, author, moderation_mode: str, expected_media_bytes: int) -> None:
+    state = (
+        ContentState.PENDING
+        if moderation_mode == ModerationMode.PREMODERATION
+        else ContentState.PUBLISHED
+    )
+    _enforce_publish_capacity(
+        author=author,
+        state=state,
+        new_media_bytes=max(expected_media_bytes, 0),
+    )
+
+
 def create_entry_records(
     *,
     author,
     body: str,
     topics: Iterable[Topic] = (),
     images: Iterable[ProcessedImage] = (),
+    video: ProcessedVideo | None = None,
     stored_files: list[tuple],
 ) -> Entry:
     _require_active_member(author)
@@ -91,11 +164,43 @@ def create_entry_records(
             raise ValidationError("图片尚未完成安全处理")
         if image.source_byte_size > maximum_image_bytes or image.byte_size > maximum_image_bytes:
             raise ValidationError("图片大小超过当前站点限制")
+    if video is not None:
+        if not isinstance(video, ProcessedVideo):
+            raise ValidationError("视频尚未完成安全处理")
+        if (
+            video.source_byte_size <= 0
+            or video.source_byte_size > MAX_VIDEO_UPLOAD_BYTES
+            or video.byte_size <= 0
+            or video.byte_size > MAX_VIDEO_UPLOAD_BYTES
+            or video.byte_size != len(video.content)
+        ):
+            raise ValidationError("视频大小超过服务器限制")
+        if video.duration_ms <= 0 or video.duration_ms > MAX_VIDEO_DURATION_MS:
+            raise ValidationError("视频时长超过服务器限制")
+        if (
+            video.width <= 0
+            or video.height <= 0
+            or video.width > MAX_VIDEO_EDGE
+            or video.height > MAX_VIDEO_EDGE
+            or video.width * video.height > MAX_VIDEO_PIXELS
+        ):
+            raise ValidationError("视频尺寸无效")
+        if video.mime_type not in VideoMimeType.values:
+            raise ValidationError("视频格式无效")
+        verify_poster_bytes(video.poster_content)
 
     state = (
         ContentState.PENDING
         if configuration.moderation_mode == ModerationMode.PREMODERATION
         else ContentState.PUBLISHED
+    )
+    new_media_bytes = sum(image.byte_size for image in images)
+    if video is not None:
+        new_media_bytes += video.byte_size + len(video.poster_content)
+    _enforce_publish_capacity(
+        author=author,
+        state=state,
+        new_media_bytes=new_media_bytes,
     )
     entry = Entry(author=author, body=body, state=state)
     entry.full_clean()
@@ -116,6 +221,30 @@ def create_entry_records(
         stored_files.append((attachment.file.storage, attachment.file.name))
         attachment.full_clean()
         attachment.save()
+    if video is not None:
+        video_asset = VideoAsset(
+            entry=entry,
+            mime_type=video.mime_type,
+            byte_size=video.byte_size,
+            poster_byte_size=len(video.poster_content),
+            duration_ms=video.duration_ms,
+            width=video.width,
+            height=video.height,
+        )
+        video_asset.file.save(
+            f"video{video.extension}",
+            ContentFile(video.content),
+            save=False,
+        )
+        stored_files.append((video_asset.file.storage, video_asset.file.name))
+        video_asset.poster.save(
+            "poster.webp",
+            ContentFile(video.poster_content),
+            save=False,
+        )
+        stored_files.append((video_asset.poster.storage, video_asset.poster.name))
+        video_asset.full_clean()
+        video_asset.save()
     return entry
 
 
@@ -125,6 +254,7 @@ def publish_entry(
     body: str,
     topics: Iterable[Topic] = (),
     images: Iterable[ProcessedImage] = (),
+    video: ProcessedVideo | None = None,
 ) -> Entry:
     stored_files: list[tuple] = []
     try:
@@ -134,6 +264,7 @@ def publish_entry(
                 body=body,
                 topics=topics,
                 images=images,
+                video=video,
                 stored_files=stored_files,
             )
         return entry

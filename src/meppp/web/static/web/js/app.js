@@ -18,6 +18,78 @@
     update();
   });
 
+  const recoveryCode = document.querySelector("[data-recovery-code]");
+  const recoveryCopy = document.querySelector("[data-copy-recovery-code]");
+  const recoveryStatus = document.querySelector("[data-copy-recovery-status]");
+  recoveryCopy?.addEventListener("click", async () => {
+    if (!recoveryCode || !recoveryStatus) return;
+    try {
+      await navigator.clipboard.writeText(recoveryCode.value);
+      recoveryStatus.textContent = "恢复码已复制。请保存到密码管理器或其他安全位置。";
+    } catch (_error) {
+      recoveryCode.focus();
+      recoveryCode.select();
+      recoveryStatus.textContent = "浏览器未允许自动复制，已选中恢复码，请手动复制。";
+    }
+  });
+
+  const videoComposer = document.querySelector("[data-video-composer]");
+  const videoInput = videoComposer?.querySelector("[data-video-input]");
+  const videoStatus = videoComposer?.querySelector("[data-video-status]");
+  const videoPreview = videoComposer?.querySelector("[data-video-preview]");
+  const videoPlayer = videoComposer?.querySelector("[data-video-preview-player]");
+  const videoRemove = videoComposer?.querySelector("[data-video-remove]");
+  let videoObjectUrl = "";
+
+  const releaseVideoUrl = () => {
+    if (videoObjectUrl) URL.revokeObjectURL(videoObjectUrl);
+    videoObjectUrl = "";
+  };
+
+  const renderVideo = () => {
+    if (!videoInput || !videoStatus || !videoPreview || !videoPlayer) return;
+    releaseVideoUrl();
+    const file = videoInput.files[0];
+    if (!file) {
+      videoPlayer.removeAttribute("src");
+      videoPlayer.load();
+      videoPreview.hidden = true;
+      videoStatus.textContent = "还没有选择视频";
+      videoStatus.classList.remove("has-error");
+      return;
+    }
+    const allowedTypes = new Set(["video/mp4", "video/webm"]);
+    const maximumBytes = Number(videoInput.dataset.maxBytes || "0");
+    const issues = [];
+    if (!allowedTypes.has(file.type)) issues.push("格式不支持");
+    if (file.size > maximumBytes) issues.push("超过 20 MB");
+    videoObjectUrl = URL.createObjectURL(file);
+    videoPlayer.src = videoObjectUrl;
+    videoPreview.hidden = false;
+    videoStatus.textContent = issues.length
+      ? `${file.name}；${issues.join("；")}`
+      : `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+    videoStatus.classList.toggle("has-error", issues.length > 0);
+  };
+
+  videoInput?.addEventListener("change", () => {
+    if (videoInput.files.length) {
+      const selectedImages = document.querySelector("[data-image-input]");
+      if (selectedImages?.files.length) {
+        selectedImages.value = "";
+        selectedImages.dispatchEvent(new Event("change"));
+      }
+    }
+    renderVideo();
+  });
+  videoRemove?.addEventListener("click", () => {
+    if (!videoInput) return;
+    videoInput.value = "";
+    renderVideo();
+  });
+  window.addEventListener("pagehide", releaseVideoUrl, { once: true });
+  renderVideo();
+
   const composer = document.querySelector("[data-image-composer]");
   const imageInput = composer?.querySelector("[data-image-input]");
   const altState = document.querySelector("#id_image_alt_texts");
@@ -129,6 +201,10 @@
   };
 
   imageInput.addEventListener("change", () => {
+    if (imageInput.files.length && videoInput?.files.length) {
+      videoInput.value = "";
+      renderVideo();
+    }
     altTexts = Array.from(imageInput.files, () => "");
     renderImages();
   });

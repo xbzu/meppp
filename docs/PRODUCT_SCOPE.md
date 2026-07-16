@@ -11,6 +11,9 @@ MEPPP is a lightweight community product. Its first complete milestone is a smal
 - Implemented: a permission-aware operations dashboard and idempotent code-defined `运营` and `审核` groups. The owner remains a Django superuser rather than a second role system.
 - Implemented: responsive desktop/mobile templates, keyboard focus, security headers, CSRF, same-origin redirects, form idempotency, and account/IP rate limits.
 - Implemented: up to four decoded, metadata-stripped, resized and server-re-encoded WebP images per entry, with alternative text, compensating file cleanup, state-aware delivery, abuse tests and media backup verification.
+- Implemented: one self-uploaded MP4/WebM video per entry with a 20 MiB / five-minute hard cap, codec allowlists, metadata-stripping remux, generated WebP poster, state-aware Range delivery, cleanup and backup verification.
+- Implemented: attributed X and YouTube source cards built from strict local URL parsing and fixed official oEmbed endpoints. MEPPP does not download or re-host third-party media; YouTube playback uses the privacy-enhanced official embed only after metadata verification.
+- Implemented: display-once account recovery codes whose credential store contains only a password hash; registration, recovery and login have separate abuse limits.
 - Deliberately closed: member avatar uploads. They will reuse the proven image processor only after the profile replacement and retention lifecycle is defined.
 
 ## MVP loop
@@ -36,7 +39,7 @@ MEPPP is a lightweight community product. Its first complete milestone is a smal
 ## Deliberately deferred
 
 - Private messaging, real-time chat, WebSockets, and push notifications
-- Video, audio, arbitrary files, video transcoding, and CDN integration
+- Audio, arbitrary files, full video transcoding, and CDN integration
 - Wallets, payments, paid attachments, and revenue sharing
 - Redis, job queues, external search engines, and event buses
 - Multiple databases and multiple object-storage providers

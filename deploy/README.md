@@ -35,7 +35,12 @@ Copy `.env.example` to `.env`, replace the secret, and use the bind mount:
 
 ```dotenv
 MEPPP_DATA_MOUNT=/srv/meppp/data
+MEPPP_TMPFS_SIZE=192m
 ```
+
+Do not lower the temporary filesystem below 192 MiB while video uploads are
+enabled; the two Gunicorn threads may each hold a bounded upload, safe remux,
+and generated poster at the same time.
 
 Before the first start, validate the fixed subnet (`172.30.89.0/28`) against every existing Docker network and host/VPN route. If it collides, change `MEPPP_NETWORK_SUBNET`, `MEPPP_NETWORK_GATEWAY`, `MEPPP_CONTAINER_IP`, and `MEPPP_TRUSTED_PROXY_IPS` together.
 
@@ -55,8 +60,8 @@ Build without assuming a buildx plugin, then prove the immutable image exists:
 
 ```bash
 cd /opt/meppp
-DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.5 .
-docker image inspect meppp:v0.1.0-rc.5 >/dev/null
+DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.6 .
+docker image inspect meppp:v0.1.0-rc.6 >/dev/null
 docker compose up --detach --no-build --wait app
 ```
 
@@ -137,4 +142,16 @@ macOS may deny an unattended LaunchAgent access to a removable volume even when 
 
 Debian 11's older `rrsync` does not recognize the harmless `--dirs` spelling emitted by current macOS rsync. Install `deploy/rrsync/meppp-rrsync-compat.sh` as `/usr/local/sbin/meppp-rrsync` and use that exact path in the forced command when this compatibility error is proven. The wrapper maps only `--dirs` to the equivalent `-d`; the distribution `rrsync` still enforces every read-only, path, and option check.
 
-The Nginx template intentionally has no public `/media/` alias. Images pass through the state-aware application route so pending, hidden, withdrawn, or inactive-author media cannot be fetched directly. Do not schedule the backup task until the destination mount and its monitoring are proven. See `docs/OPERATIONS.md` for retention, media reconciliation, restore drills, and attended recovery.
+The Nginx template intentionally has no public `/media/` alias. Images, videos and video posters pass through state-aware application routes so pending, hidden, withdrawn, or inactive-author media cannot be fetched directly. Do not schedule the backup task until the destination mount and its monitoring are proven. See `docs/OPERATIONS.md` for retention, media reconciliation, restore drills, and attended recovery.
+
+Install the due-source refresh job after the release smoke test:
+
+```bash
+install -m 0644 deploy/systemd/meppp-external-refresh.service /etc/systemd/system/
+install -m 0644 deploy/systemd/meppp-external-refresh.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl start meppp-external-refresh.service
+systemctl enable --now meppp-external-refresh.timer
+```
+
+The job handles only X/YouTube records already accepted by the application and calls fixed official oEmbed endpoints. It is not a generic URL fetcher and does not download third-party media.

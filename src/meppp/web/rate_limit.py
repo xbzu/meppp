@@ -18,7 +18,10 @@ class RateLimit:
 RATE_LIMITS = {
     "login": RateLimit(10, 300),
     "register": RateLimit(5, 3600),
+    "recover": RateLimit(5, 3600),
+    "account_security": RateLimit(5, 900),
     "publish": RateLimit(10, 300),
+    "video_process": RateLimit(5, 3600),
     "comment": RateLimit(20, 300),
     "reaction": RateLimit(60, 60),
     "report": RateLimit(5, 3600),

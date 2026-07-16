@@ -4,6 +4,7 @@ import json
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.password_validation import validate_password
 
 from meppp.accounts.models import User
 from meppp.accounts.normalization import normalize_username
@@ -12,8 +13,9 @@ from meppp.configuration.models import (
     MAX_IMAGES_PER_POST,
     RegistrationMode,
 )
+from meppp.external.parsing import ExternalURLValidationError, parse_external_url
 from meppp.moderation.models import ReportReason
-from meppp.publishing.models import Topic
+from meppp.publishing.models import MAX_VIDEO_UPLOAD_BYTES, Topic
 
 
 class MultipleImageInput(forms.ClearableFileInput):
@@ -60,8 +62,8 @@ class MemberAuthenticationForm(FormStyleMixin, AuthenticationForm):
 class RegistrationForm(FormStyleMixin, UserCreationForm):
     email = forms.EmailField(
         label="邮箱",
-        required=False,
-        help_text="可选。首版暂不提供邮箱登录或密码找回。",
+        required=True,
+        help_text="必填，用于账号恢复时核对；不会展示在公开资料中。",
     )
     invitation_token = forms.CharField(
         label="邀请码",
@@ -70,6 +72,17 @@ class RegistrationForm(FormStyleMixin, UserCreationForm):
         widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
     )
     accept_rules = forms.BooleanField(label="我愿意遵守社区公约")
+    website = forms.CharField(
+        required=False,
+        label="个人网站",
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "off",
+                "tabindex": "-1",
+                "aria-hidden": "true",
+            }
+        ),
+    )
 
     class Meta(UserCreationForm.Meta):
         model = User
@@ -88,6 +101,17 @@ class RegistrationForm(FormStyleMixin, UserCreationForm):
         self.fields["password2"].label = "确认密码"
         self.fields["password1"].widget.attrs["autocomplete"] = "new-password"
         self.fields["password2"].widget.attrs["autocomplete"] = "new-password"
+        self.order_fields(
+            (
+                "username",
+                "email",
+                "password1",
+                "password2",
+                "invitation_token",
+                "accept_rules",
+                "website",
+            )
+        )
 
     def clean_username(self) -> str:
         username = normalize_username(self.cleaned_data["username"])
@@ -97,14 +121,79 @@ class RegistrationForm(FormStyleMixin, UserCreationForm):
 
     def clean_email(self) -> str:
         email = self.cleaned_data.get("email", "").strip().lower()
-        if email and User.objects.filter(email__iexact=email).exists():
+        if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("这个邮箱已经被使用。")
         return email
+
+    def clean_website(self) -> str:
+        if self.cleaned_data.get("website", "").strip():
+            raise forms.ValidationError("无法完成注册，请刷新页面后重试。")
+        return ""
+
+
+class AccountRecoveryForm(FormStyleMixin, forms.Form):
+    username = forms.CharField(label="用户名", max_length=150)
+    email = forms.EmailField(label="注册邮箱")
+    recovery_code = forms.CharField(
+        label="账号恢复码",
+        max_length=200,
+        strip=True,
+        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
+        help_text="输入注册或上次恢复后显示的一次性恢复码。",
+    )
+    password1 = forms.CharField(
+        label="新密码",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+    password2 = forms.CharField(
+        label="确认新密码",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.apply_field_styles()
+        self.fields["username"].widget.attrs.update({"autocomplete": "username", "autofocus": True})
+        self.fields["email"].widget.attrs["autocomplete"] = "email"
+
+    def clean_username(self) -> str:
+        return normalize_username(self.cleaned_data["username"])
+
+    def clean_email(self) -> str:
+        return self.cleaned_data["email"].strip().lower()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        first = cleaned_data.get("password1")
+        second = cleaned_data.get("password2")
+        if first and second and first != second:
+            self.add_error("password2", "两次输入的密码不一致。")
+        elif second:
+            try:
+                validate_password(second)
+            except forms.ValidationError as error:
+                self.add_error("password2", error)
+        return cleaned_data
+
+
+class RecoveryCodeRotateForm(FormStyleMixin, forms.Form):
+    current_password = forms.CharField(
+        label="当前密码",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.apply_field_styles()
 
 
 class EntryForm(FormStyleMixin, forms.Form):
     body = forms.CharField(
         label="正文",
+        required=False,
         widget=forms.Textarea(
             attrs={
                 "rows": 10,
@@ -112,6 +201,21 @@ class EntryForm(FormStyleMixin, forms.Form):
                 "data-character-input": "entry",
             }
         ),
+    )
+    source_url = forms.URLField(
+        label="导入 X / YouTube",
+        required=False,
+        max_length=2_048,
+        widget=forms.URLInput(
+            attrs={
+                "placeholder": "粘贴 X Post 或 YouTube 视频链接",
+                "autocomplete": "off",
+                "spellcheck": "false",
+                "inputmode": "url",
+                "data-source-url": "",
+            }
+        ),
+        help_text="导入的是带原始署名和链接的引用卡片；不会下载或冒充原作者的媒体。",
     )
     topics = forms.ModelMultipleChoiceField(
         label="话题",
@@ -129,6 +233,19 @@ class EntryForm(FormStyleMixin, forms.Form):
                 "class": "sr-only image-input",
                 "data-image-input": "",
                 "aria-describedby": "image-help image-status",
+            }
+        ),
+    )
+    video = forms.FileField(
+        label="视频",
+        required=False,
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": "video/mp4,video/webm,.mp4,.webm",
+                "class": "sr-only video-input",
+                "data-video-input": "",
+                "data-max-bytes": str(MAX_VIDEO_UPLOAD_BYTES),
+                "aria-describedby": "video-help video-status",
             }
         ),
     )
@@ -150,14 +267,32 @@ class EntryForm(FormStyleMixin, forms.Form):
                 "data-max-bytes": str(self.maximum_image_bytes),
             }
         )
-        self.order_fields(("body", "images", "image_alt_texts", "topics", "nonce"))
+        self.order_fields(
+            (
+                "body",
+                "source_url",
+                "images",
+                "image_alt_texts",
+                "video",
+                "topics",
+                "nonce",
+            )
+        )
         self.apply_field_styles()
 
     def clean_body(self) -> str:
-        body = self.cleaned_data["body"].strip()
-        if not body:
-            raise forms.ValidationError("正文不能为空。")
-        return body
+        return self.cleaned_data.get("body", "").strip()
+
+    def clean_source_url(self) -> str:
+        source_url = self.cleaned_data.get("source_url", "").strip()
+        if not source_url:
+            self.external_source = None
+            return ""
+        try:
+            self.external_source = parse_external_url(source_url)
+        except ExternalURLValidationError as error:
+            raise forms.ValidationError(str(error)) from error
+        return self.external_source.canonical_url
 
     def clean_topics(self):
         topics = self.cleaned_data["topics"]
@@ -180,6 +315,16 @@ class EntryForm(FormStyleMixin, forms.Form):
                 raise forms.ValidationError(f"每张图片不能超过 {maximum_mb} MB。")
         return images
 
+    def clean_video(self):
+        video = self.cleaned_data.get("video")
+        if video is None:
+            return None
+        if video.size <= 0:
+            raise forms.ValidationError("视频文件不能为空。")
+        if video.size > MAX_VIDEO_UPLOAD_BYTES:
+            raise forms.ValidationError("视频不能超过 20 MB。")
+        return video
+
     def clean_image_alt_texts(self):
         raw_value = self.cleaned_data.get("image_alt_texts", "")
         if not raw_value:
@@ -201,12 +346,23 @@ class EntryForm(FormStyleMixin, forms.Form):
         cleaned_data = super().clean()
         images = cleaned_data.get("images", [])
         alt_texts = cleaned_data.get("image_alt_texts", [])
+        video = cleaned_data.get("video")
+        source_url = cleaned_data.get("source_url", "")
         if len(alt_texts) > len(images):
             self.add_error("images", "图片与说明数量不一致，请重新选择图片。")
         cleaned_data["image_alt_texts"] = alt_texts + [""] * max(
             0,
             len(images) - len(alt_texts),
         )
+        if images and video:
+            self.add_error("video", "一条动态请选择图片或视频，不要同时上传两种媒体。")
+        if source_url and (images or video):
+            self.add_error(
+                "source_url",
+                "导入外部引用时不能同时上传本地图片或视频，请分成两条动态。",
+            )
+        if not cleaned_data.get("body") and not source_url:
+            self.add_error("body", "请填写正文，或导入一个 X / YouTube 链接。")
         return cleaned_data
 
 

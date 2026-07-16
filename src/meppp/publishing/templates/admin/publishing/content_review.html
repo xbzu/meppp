@@ -49,6 +49,26 @@
           {% endfor %}
         </div>
       {% endif %}
+      {% if not is_comment and target.video %}
+        <div class="review-video" aria-label="待审内容视频">
+          <video controls playsinline preload="metadata" poster="{% url 'web:video-poster-file' target.video.public_id %}">
+            <source src="{% url 'web:video-file' target.video.public_id %}" type="{{ target.video.mime_type }}">
+            当前浏览器不能播放这个视频。
+          </video>
+          <p>{{ target.video.get_mime_type_display }} · {{ target.video.byte_size|filesizeformat }} · {{ target.video.duration_ms }} ms</p>
+        </div>
+      {% endif %}
+      {% if not is_comment and target.external_reference %}
+        {% with source=target.external_reference %}
+          <section class="review-source-card" aria-label="待审外部来源">
+            <p class="review-kicker">{{ source.get_provider_display }} 原始来源 · {{ source.get_metadata_status_display }}</p>
+            {% if source.title %}<h3>{{ source.title }}</h3>{% endif %}
+            {% if source.excerpt %}<p>{{ source.excerpt }}</p>{% endif %}
+            {% if source.author_name %}<p>原作者：{{ source.author_name }}</p>{% endif %}
+            <a href="{{ source.canonical_url }}" target="_blank" rel="ugc nofollow noreferrer noopener">在 {{ source.get_provider_display }} 核对原文 ↗</a>
+          </section>
+        {% endwith %}
+      {% endif %}
     </section>
 
     <form method="post" class="review-decision-form" novalidate>

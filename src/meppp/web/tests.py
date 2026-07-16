@@ -4,7 +4,7 @@ from datetime import timedelta
 from ipaddress import ip_network
 from unittest.mock import patch
 
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -37,6 +37,7 @@ PASSWORD = "Valid-community-password-4821!"
 class WebTestCase(TestCase):
     def setUp(self):
         cache.clear()
+        caches["recovery_notices"].clear()
 
     def create_member(self, username: str, **kwargs) -> User:
         user = User.objects.create_user(username=username, password=PASSWORD, **kwargs)
@@ -264,7 +265,7 @@ class AuthenticationUiTests(WebTestCase):
             reverse("web:register"),
             {
                 "username": "invited-member",
-                "email": "",
+                "email": "invited@example.test",
                 "password1": PASSWORD,
                 "password2": PASSWORD,
                 "invitation_token": plaintext,
@@ -272,7 +273,7 @@ class AuthenticationUiTests(WebTestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("web:home"))
+        self.assertRedirects(response, reverse("web:recovery-code"))
         invitation.refresh_from_db()
         self.assertEqual(invitation.claimed_by.username, "invited-member")
         self.assertEqual(int(self.client.session["_auth_user_id"]), invitation.claimed_by_id)
@@ -292,7 +293,7 @@ class AuthenticationUiTests(WebTestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("web:home"))
+        self.assertRedirects(response, reverse("web:recovery-code"))
         user = User.objects.get(username="NewMember")
         self.assertEqual(user.email, "new@example.com")
         self.assertTrue(Profile.objects.filter(user=user).exists())
@@ -312,7 +313,7 @@ class AuthenticationUiTests(WebTestCase):
                 reverse("web:register"),
                 {
                     "username": "late-member",
-                    "email": "",
+                    "email": "late-member@example.test",
                     "password1": PASSWORD,
                     "password2": PASSWORD,
                     "accept_rules": "on",
@@ -331,7 +332,7 @@ class AuthenticationUiTests(WebTestCase):
             reverse("web:register"),
             {
                 "username": "member",
-                "email": "",
+                "email": "another@example.test",
                 "password1": PASSWORD,
                 "password2": PASSWORD,
                 "accept_rules": "on",

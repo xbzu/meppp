@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from django.conf import settings
 from django.db import transaction
 
+from meppp.external.services import create_external_reference
 from meppp.publishing.image_processing import ProcessedImage
 from meppp.publishing.models import Comment, Entry, Topic
 from meppp.publishing.services import (
@@ -14,6 +15,7 @@ from meppp.publishing.services import (
     cleanup_stored_files,
     create_entry_records,
 )
+from meppp.publishing.video_processing import ProcessedVideo
 
 from .models import SubmissionClaim
 
@@ -48,6 +50,8 @@ def publish_entry_once(
     purpose: str,
     token: str,
     images: Iterable[ProcessedImage] = (),
+    video: ProcessedVideo | None = None,
+    source_url: str = "",
 ) -> Entry:
     stored_files: list[tuple] = []
     try:
@@ -58,8 +62,11 @@ def publish_entry_once(
                 body=body,
                 topics=topics,
                 images=images,
+                video=video,
                 stored_files=stored_files,
             )
+            if source_url:
+                create_external_reference(entry=entry, source_url=source_url, refresh=False)
         return entry
     except BaseException:
         cleanup_stored_files(stored_files)

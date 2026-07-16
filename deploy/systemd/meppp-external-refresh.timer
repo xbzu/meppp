@@ -1,0 +1,14 @@
+[Unit]
+Description=Refresh MEPPP source cards every fifteen minutes
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=15m
+Persistent=true
+RandomizedDelaySec=2m
+AccuracySec=1m
+Unit=meppp-external-refresh.service
+
+[Install]
+WantedBy=timers.target
+

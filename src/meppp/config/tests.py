@@ -31,6 +31,9 @@ print(json.dumps({
     "hsts_preload": settings.SECURE_HSTS_PRELOAD,
     "hsts_seconds": settings.SECURE_HSTS_SECONDS,
     "middleware": settings.MIDDLEWARE,
+    "media_max_total_bytes": settings.MEDIA_MAX_TOTAL_BYTES,
+    "member_daily_media_bytes": settings.MEMBER_DAILY_MEDIA_BYTES,
+    "member_pending_entry_limit": settings.MEMBER_PENDING_ENTRY_LIMIT,
     "root_log_level": settings.LOGGING["root"]["level"],
     "secret_key_fallbacks": settings.SECRET_KEY_FALLBACKS,
     "silenced_system_checks": settings.SILENCED_SYSTEM_CHECKS,
@@ -139,6 +142,26 @@ print(json.dumps({
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("MEPPP_LOG_LEVEL must be a valid logging level", result.stderr)
+
+    def test_media_capacity_limits_are_loaded_and_must_stay_positive(self):
+        settings_values = self.read_settings(
+            MEPPP_MEDIA_MAX_TOTAL_BYTES="1073741824",
+            MEPPP_MEMBER_DAILY_MEDIA_BYTES="52428800",
+            MEPPP_MEMBER_PENDING_ENTRY_LIMIT="3",
+        )
+        self.assertEqual(settings_values["media_max_total_bytes"], 1_073_741_824)
+        self.assertEqual(settings_values["member_daily_media_bytes"], 52_428_800)
+        self.assertEqual(settings_values["member_pending_entry_limit"], 3)
+
+        for setting_name in (
+            "MEPPP_MEDIA_MAX_TOTAL_BYTES",
+            "MEPPP_MEMBER_DAILY_MEDIA_BYTES",
+            "MEPPP_MEMBER_PENDING_ENTRY_LIMIT",
+        ):
+            with self.subTest(setting_name=setting_name):
+                result = self.run_production_settings(**{setting_name: "0"})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("limits must be positive", result.stderr)
 
     def test_production_rejects_unknown_environment_and_debug_mode(self):
         invalid_configurations = (

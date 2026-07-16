@@ -41,8 +41,8 @@ if [ -n "$(find "$host_media_dir" -type l -print -quit)" ]; then
     echo "refusing media backup: symbolic link found" >&2
     exit 1
 fi
-if [ -n "$(find "$host_media_dir" -type f ! -name '*.webp' -print -quit)" ]; then
-    echo "refusing media backup: unexpected non-WebP file found" >&2
+if [ -n "$(find "$host_media_dir" -type f ! \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)" ]; then
+    echo "refusing media backup: unexpected media file found" >&2
     exit 1
 fi
 
@@ -51,7 +51,7 @@ media_manifest="${snapshot_id}-media.sha256"
 media_manifest_tmp="${host_backup_dir}/.${media_manifest}.tmp"
 (
     cd "$host_data_dir"
-    find media -type f -name '*.webp' -print0 | sort -z | \
+    find media -type f \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print0 | sort -z | \
         xargs -0 -r sha256sum
 ) > "$media_manifest_tmp"
 chmod 600 "$media_manifest_tmp"
@@ -67,7 +67,7 @@ if [ -s "${host_backup_dir}/${media_manifest}" ]; then
         sha256sum --check "backups/sqlite/${media_manifest}"
     )
 else
-    test -z "$(find "$host_media_dir" -type f -name '*.webp' -print -quit)"
+    test -z "$(find "$host_media_dir" -type f \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)"
 fi
 
 echo "MEPPP source backup, restore drill, media verification, and manifests passed: ${latest_name}"

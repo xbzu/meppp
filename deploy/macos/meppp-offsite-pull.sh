@@ -111,7 +111,7 @@ export RSYNC_RSH
     --exclude='*' \
     "${remote}:/backups/sqlite/" "$offsite_dir/"
 /usr/bin/rsync -rtp --ignore-existing \
-    --include='*/' --include='*.webp' --exclude='*' \
+    --include='*/' --include='*.webp' --include='*.mp4' --include='*.webm' --exclude='*' \
     "${remote}:/media/" "$offsite_dir/media/"
 
 if [ "$(volume_uuid)" != "$expected_volume_uuid" ]; then
@@ -127,7 +127,7 @@ if [ -n "$(find "$offsite_dir/media" -type l -print -quit)" ]; then
     echo "refusing backup result: symbolic link found" >&2
     exit 1
 fi
-if [ -n "$(find "$offsite_dir/media" -type f ! -name '*.webp' -print -quit)" ]; then
+if [ -n "$(find "$offsite_dir/media" -type f ! \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)" ]; then
     echo "refusing backup result: unexpected media file found" >&2
     exit 1
 fi
@@ -156,7 +156,7 @@ if [ -s "${offsite_dir}/${media_manifest}" ]; then
         /usr/bin/shasum -a 256 --check "$media_manifest"
     )
 else
-    test -z "$(find "$offsite_dir/media" -type f -name '*.webp' -print -quit)"
+    test -z "$(find "$offsite_dir/media" -type f \( -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \) -print -quit)"
 fi
 
 now_epoch=$(date +%s)

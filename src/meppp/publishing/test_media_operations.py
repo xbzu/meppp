@@ -6,6 +6,7 @@ import tempfile
 import time
 from io import BytesIO, StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -18,6 +19,9 @@ from meppp.configuration.models import SiteConfiguration
 from meppp.web.services import publish_entry_once
 
 from .image_processing import process_image_upload
+from .models import VideoMimeType
+from .services import publish_entry
+from .video_processing import ProcessedVideo, VideoProbe
 
 
 def make_processed_image():
@@ -26,6 +30,22 @@ def make_processed_image():
     return process_image_upload(
         upload=SimpleUploadedFile("source.png", source.getvalue()),
         max_bytes=5 * 1024 * 1024,
+    )
+
+
+def make_processed_video():
+    poster = BytesIO()
+    Image.new("RGB", (64, 48), "blue").save(poster, format="WEBP")
+    content = b"verified-video-content"
+    return ProcessedVideo(
+        content=content,
+        poster_content=poster.getvalue(),
+        source_byte_size=len(content),
+        byte_size=len(content),
+        duration_ms=1250,
+        width=64,
+        height=48,
+        mime_type=VideoMimeType.MP4,
     )
 
 
@@ -48,7 +68,7 @@ class MediaOperationTests(TestCase):
         )
         self.attachment = self.entry.attachments.get()
 
-    def create_snapshot_database(self) -> Path:
+    def create_snapshot_database(self, *, video_asset=None) -> Path:
         database_path = Path(self.media_directory.name, "snapshot.sqlite3")
         with sqlite3.connect(database_path) as database:
             database.execute(
@@ -67,6 +87,37 @@ class MediaOperationTests(TestCase):
                     self.attachment.height,
                 ),
             )
+            if video_asset is not None:
+                database.execute(
+                    "CREATE TABLE publishing_entry (id integer primary key, public_id text)"
+                )
+                database.execute(
+                    "CREATE TABLE publishing_videoasset "
+                    "(id integer primary key, public_id text, entry_id integer, file text, "
+                    "poster text, mime_type text, byte_size integer, duration_ms integer, "
+                    "poster_byte_size integer, width integer, height integer)"
+                )
+                database.execute(
+                    "INSERT INTO publishing_entry (id, public_id) VALUES (?, ?)",
+                    (video_asset.entry_id, str(video_asset.entry.public_id)),
+                )
+                database.execute(
+                    "INSERT INTO publishing_videoasset "
+                    "(public_id, entry_id, file, poster, mime_type, byte_size, duration_ms, "
+                    "poster_byte_size, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        str(video_asset.public_id),
+                        video_asset.entry_id,
+                        video_asset.file.name,
+                        video_asset.poster.name,
+                        video_asset.mime_type,
+                        video_asset.byte_size,
+                        video_asset.duration_ms,
+                        video_asset.poster_byte_size,
+                        video_asset.width,
+                        video_asset.height,
+                    ),
+                )
         return database_path
 
     def test_verify_media_accepts_matching_snapshot_and_rejects_tampering(self):
@@ -115,3 +166,72 @@ class MediaOperationTests(TestCase):
         call_command("reconcile_media", delete=True, stdout=StringIO())
 
         self.assertTrue(recent.exists())
+
+    def test_verify_media_accepts_canonical_video_and_poster_and_rejects_drift(self):
+        entry = publish_entry(
+            author=self.author,
+            body="视频备份校验",
+            video=make_processed_video(),
+        )
+        asset = entry.video
+        database_path = self.create_snapshot_database(video_asset=asset)
+        matching_probe = VideoProbe(
+            mime_type=asset.mime_type,
+            duration_ms=asset.duration_ms,
+            width=asset.width,
+            height=asset.height,
+            video_codec="h264",
+            audio_codec="aac",
+        )
+        output = StringIO()
+
+        with patch(
+            "meppp.publishing.management.commands.verify_media.probe_video_path",
+            return_value=matching_probe,
+        ):
+            call_command(
+                "verify_media",
+                database=str(database_path),
+                media_root=self.media_directory.name,
+                stdout=output,
+            )
+        self.assertIn("media_verification=passed attachments=1 videos=1", output.getvalue())
+
+        with open(asset.file.path, "ab") as media_file:
+            media_file.write(b"tampered")
+        with self.assertRaisesMessage(CommandError, "video file size"):
+            call_command(
+                "verify_media",
+                database=str(database_path),
+                media_root=self.media_directory.name,
+            )
+
+    def test_reconcile_media_handles_video_and_poster_but_ignores_unknown_files(self):
+        entry = publish_entry(
+            author=self.author,
+            body="视频孤儿清理",
+            video=make_processed_video(),
+        )
+        asset = entry.video
+        orphan_root = Path(self.media_directory.name, "entries/orphan-video")
+        orphan_root.mkdir(parents=True)
+        orphans = [
+            orphan_root / "orphan.mp4",
+            orphan_root / "orphan.webm",
+            orphan_root / "orphan-poster.webp",
+        ]
+        for orphan in orphans:
+            orphan.write_bytes(b"old-generated-media")
+            old_time = time.time() - 48 * 3600
+            os.utime(orphan, (old_time, old_time))
+        unknown = orphan_root / "operator-note.txt"
+        unknown.write_text("keep", encoding="utf-8")
+        old_time = time.time() - 48 * 3600
+        os.utime(unknown, (old_time, old_time))
+
+        call_command("reconcile_media", delete=True, stdout=StringIO())
+
+        self.assertTrue(Path(asset.file.path).exists())
+        self.assertTrue(Path(asset.poster.path).exists())
+        self.assertTrue(all(not orphan.exists() for orphan in orphans))
+        self.assertTrue(unknown.exists())

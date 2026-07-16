@@ -1,0 +1,17 @@
+<fieldset class="video-composer{% if field.errors %} has-error{% endif %}" data-video-composer>
+  <legend>{{ field.label }}</legend>
+  <p id="video-help" class="field-help">
+    MP4（H.264/AAC）或 WebM（VP8、VP9、AV1）；不超过 20 MB、5 分钟。服务器会移除元数据并生成封面；上传即表示你拥有或已获授权使用它。
+  </p>
+  {{ field }}
+  <label class="video-picker" for="{{ field.id_for_label }}" data-video-picker>
+    <strong>选择视频</strong>
+    <span>一次上传 1 个自己拥有或获授权的视频</span>
+  </label>
+  <p id="video-status" class="video-status" role="status" aria-live="polite" data-video-status>还没有选择视频</p>
+  {% if field.errors %}<div class="field-errors" role="alert">{{ field.errors }}</div>{% endif %}
+  <div class="video-preview" data-video-preview hidden>
+    <video controls muted playsinline preload="metadata" data-video-preview-player></video>
+    <button class="button-secondary button-small" type="button" data-video-remove>移除视频</button>
+  </div>
+</fieldset>

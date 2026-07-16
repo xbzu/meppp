@@ -275,4 +275,8 @@ class ImagePublishingTests(TestCase):
 
         self.assertNotContains(response, '<script>alert("x")</script>')
         self.assertContains(response, "&lt;script&gt;alert(&quot;")
-        self.assertContains(response, 'alt=""', count=1)
+        self.assertContains(
+            response,
+            'alt="" loading="lazy" decoding="async"',
+            count=1,
+        )

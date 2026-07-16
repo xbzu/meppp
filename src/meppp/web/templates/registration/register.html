@@ -1,11 +1,12 @@
 {% extends 'web/base.html' %}
+{% load static %}
 {% block body_class %}auth-page{% endblock %}
 {% block title %}加入社区 · {{ site_config.site_name }}{% endblock %}
 {% block content %}
   <div class="auth-layout paopao-auth-layout">
     <section class="auth-card" aria-labelledby="register-title">
       <a class="auth-brand" href="{% url 'web:home' %}" aria-label="返回 {{ site_config.site_name }} 广场">
-        <span aria-hidden="true">M</span><strong>{{ site_config.site_name }}</strong>
+        <img class="brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="36" height="36"><strong>{{ site_config.site_name }}</strong>
       </a>
       <nav class="auth-tabs" aria-label="账号入口">
         <a href="{% url 'web:login' %}">登录</a>
@@ -23,7 +24,7 @@
         </form>
       {% else %}
         <div class="closed-register">
-          <span aria-hidden="true">M</span>
+          <img class="state-logo" src="{% static 'web/img/mark.svg' %}" alt="" width="52" height="52">
           <h1 id="register-title">注册暂未开放</h1>
           <p>注册入口已经准备好，目前由管理员暂时关闭。已有账号的成员仍可正常登录。</p>
           <a class="button-primary button-block" href="{% url 'web:login' %}">前往登录</a>

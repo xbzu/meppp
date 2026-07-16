@@ -1,11 +1,12 @@
 {% extends 'web/base.html' %}
+{% load static %}
 {% block body_class %}auth-page{% endblock %}
 {% block title %}成员登录 · {{ site_config.site_name }}{% endblock %}
 {% block content %}
   <div class="auth-layout paopao-auth-layout">
     <section class="auth-card" aria-labelledby="login-title">
       <a class="auth-brand" href="{% url 'web:home' %}" aria-label="返回 {{ site_config.site_name }} 广场">
-        <span aria-hidden="true">M</span><strong>{{ site_config.site_name }}</strong>
+        <img class="brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="36" height="36"><strong>{{ site_config.site_name }}</strong>
       </a>
       <nav class="auth-tabs" aria-label="账号入口">
         <a href="{% url 'web:login' %}" aria-current="page">登录</a>

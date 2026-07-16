@@ -1,0 +1,36 @@
+.invitation-token-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+#issued-invitation-token {
+  width: min(100%, 46rem);
+  min-height: 44px;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.invitation-token-row .button,
+.submit-row .button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.invitation-copy-status {
+  min-height: 1.4em;
+  margin-top: 8px;
+}
+
+@media (max-width: 767px) {
+  .invitation-token-row {
+    flex-direction: column;
+  }
+
+  .invitation-token-row .button {
+    justify-content: center;
+    width: 100%;
+  }
+}

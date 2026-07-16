@@ -40,7 +40,7 @@
                 通知
                 {% if unread_notification_count %}<span class="notification-count" aria-label="{{ unread_notification_count }} 条未读">{{ unread_notification_count }}</span>{% endif %}
               </a>
-              <a href="{% url 'web:member-profile' request.user.public_id %}">{{ request.user.username }}</a>
+              <a href="{% url 'web:member-dashboard' %}"{% if request.resolver_match.url_name == 'member-dashboard' or request.resolver_match.url_name == 'member-settings' or request.resolver_match.url_name == 'member-password' %} aria-current="page"{% endif %}>我的</a>
               {% if request.user.is_staff %}<a href="{% url 'admin:index' %}">管理</a>{% endif %}
               <form class="nav-form" method="post" action="{% url 'web:logout' %}">
                 {% csrf_token %}
@@ -48,7 +48,7 @@
               </form>
             {% else %}
               <a href="{% url 'web:login' %}?next={{ request.get_full_path|urlencode }}">登录</a>
-              {% if site_config.registration_mode == 'open' %}<a class="nav-join" href="{% url 'web:register' %}">加入</a>{% endif %}
+              {% if site_config.registration_mode == 'open' or site_config.registration_mode == 'invite' %}<a class="nav-join" href="{% url 'web:register' %}">{% if site_config.registration_mode == 'invite' %}凭邀请加入{% else %}加入{% endif %}</a>{% endif %}
             {% endif %}
           </nav>
         </div>

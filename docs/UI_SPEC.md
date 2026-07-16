@@ -19,10 +19,11 @@ MEPPP uses an independent “quiet community ledger” direction. It is built fo
 | Entry | Full text, topics, like state, flat comments, bound report links |
 | Member | Public name, bio, counts, public entries, follow state |
 | Login/register | Public member authentication, fail-closed registration modes |
+| My community | Recipient-only content states, profile/password settings, and author withdrawal |
 | Composer | Text and up to three existing topics; pending state in pre-moderation mode |
-| Notifications | Recipient-only follow, like, comment, moderation, and system notices |
+| Notifications | Recipient-only follow, like, comment, moderation outcome/reason, and system notices |
 | Report | Private reason/details form bound to a visible user, entry, or comment |
-| Admin | Branded Django Admin for trusted configuration and moderation work |
+| Admin | Branded operations dashboard, one-time invitations, dedicated content queues, configuration, and report workflows |
 
 ## Responsive contract
 

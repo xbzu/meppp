@@ -54,6 +54,10 @@ docker compose exec app python manage.py createsuperuser
 
 There is no default administrator credential.
 
+The container reconciles the code-defined `运营` and `审核` groups after every migration and before serving traffic. It never creates an owner or assigns people to a group. The owner can assign active staff through Django Admin; only the owner can manage member accounts and registration invitations in the first operational milestone. Reconciliation is deliberately corrective: permissions added to these two managed groups outside the code manifest are removed at the next start, while group membership is preserved.
+
+For an invitation-only opening, keep registration closed during the private smoke test. Then use **运营总览 → 注册邀请** to issue a time-limited token, copy the plaintext from that one response, and deliver it through a separate private channel. The database and audit log retain only a digest and short hint. Change registration mode to **仅限邀请** only after the join, pending-content, review, notification, and withdrawal smoke path passes.
+
 ## Reverse proxy trust
 
 Set `MEPPP_TRUST_PROXY=1` only for the documented Nginx path. The Nginx template overwrites both `X-Forwarded-Proto` and `X-Real-IP`. Django accepts them only when the direct peer is the exact fixed Docker gateway in `MEPPP_TRUSTED_PROXY_IPS`; client-supplied forwarded headers are discarded.
@@ -134,7 +138,7 @@ For every upgrade:
 2. Record `docker compose images` and the current `MEPPP_IMAGE` value.
 3. Build the new source as a new immutable tag and update `MEPPP_IMAGE` in `.env`.
 4. Run `docker compose config --quiet`.
-5. Start only the application service and wait for healthy status.
+5. Start only the application service and wait for healthy status. Startup migrates the database, reconciles managed role permissions, and collects static assets before Gunicorn starts.
 6. Test health, homepage, login, admin Basic Auth, and a staff moderation path before opening traffic.
 
 Do not overwrite or delete the prior image during the release window. If code fails before a migration changes data, restore the prior `MEPPP_IMAGE` value and recreate the service. If a migration or application write changed data incompatibly, use the attended staged-recovery procedure above, restore the prior image tag, and then start. Never attempt schema rollback by copying a live SQLite file.

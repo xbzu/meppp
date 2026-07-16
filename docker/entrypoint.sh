@@ -14,6 +14,7 @@ if [ "${MEPPP_BACKUP_BEFORE_MIGRATE:-1}" = "1" ] && [ -f "$database_path" ]; the
 fi
 
 python manage.py migrate --noinput
+python manage.py bootstrap_roles
 python manage.py collectstatic --noinput
 
 exec "$@"

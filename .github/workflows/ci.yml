@@ -132,6 +132,8 @@ jobs:
           test "$(docker exec "$container_id" id -u)" = "10001"
           docker exec "$container_id" python manage.py shell -c \
             'from django.conf import settings; assert settings.SECURE_HSTS_SECONDS == 3600; assert not settings.SECURE_HSTS_INCLUDE_SUBDOMAINS; assert not settings.SECURE_HSTS_PRELOAD'
+          docker exec "$container_id" python manage.py shell -c \
+            'from django.contrib.auth.models import Group; assert set(Group.objects.values_list("name", flat=True)) == {"运营", "审核"}'
           curl --fail --silent --header 'Host: meppp.com' \
             http://127.0.0.1:18080/health/ready
           curl --fail --silent --output /tmp/meppp-homepage.html \

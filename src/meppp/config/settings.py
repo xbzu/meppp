@@ -161,6 +161,7 @@ INSTALLED_APPS = [
     "meppp.notifications.apps.NotificationsConfig",
     "meppp.audit.apps.AuditConfig",
     "meppp.moderation.apps.ModerationConfig",
+    "meppp.operations.apps.OperationsConfig",
     "meppp.web.apps.WebConfig",
 ]
 

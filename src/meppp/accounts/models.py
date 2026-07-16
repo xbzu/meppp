@@ -1,10 +1,11 @@
 import uuid
 
+from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import UserManager as DjangoUserManager
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator, MaxLengthValidator
-from django.db import models
+from django.db import DEFAULT_DB_ALIAS, models, transaction
 from django.db.models.functions import Lower
 
 from meppp.common.models import PublicModel
@@ -24,6 +25,21 @@ class UserManager(DjangoUserManager.from_queryset(UserQuerySet)):
     def get_by_natural_key(self, username):
         normalized = normalize_username(username)
         return self.get(username__iexact=normalized)
+
+    def _create_user(self, username, email, password, **extra_fields):
+        database = self._db or DEFAULT_DB_ALIAS
+        with transaction.atomic(using=database):
+            user = super()._create_user(username, email, password, **extra_fields)
+            Profile.objects.using(database).get_or_create(user_id=user.pk)
+        return user
+
+    async def _acreate_user(self, username, email, password, **extra_fields):
+        return await sync_to_async(self._create_user, thread_sensitive=True)(
+            username,
+            email,
+            password,
+            **extra_fields,
+        )
 
 
 class User(AbstractUser):
@@ -71,3 +87,55 @@ class Profile(PublicModel):
 
     def __str__(self) -> str:
         return self.display_name or self.user.get_username()
+
+
+class Invitation(PublicModel):
+    token_digest = models.CharField(max_length=64, unique=True, editable=False)
+    hint = models.CharField(max_length=8, editable=False)
+    issuer = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="issued_invitations",
+    )
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    claimed_by = models.OneToOneField(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="claimed_invitation",
+    )
+    bound_email = models.EmailField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        verbose_name = "注册邀请"
+        verbose_name_plural = "注册邀请"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(claimed_at__isnull=True, claimed_by__isnull=True)
+                    | models.Q(claimed_at__isnull=False, claimed_by__isnull=False)
+                ),
+                name="accounts_invitation_claim_fields_match",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(revoked_at__isnull=True) | models.Q(claimed_at__isnull=True),
+                name="accounts_invitation_not_claimed_and_revoked",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["claimed_at", "revoked_at", "expires_at"],
+                name="accounts_invitation_state_idx",
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        self.bound_email = self.bound_email.strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"…{self.hint}"

@@ -5,6 +5,7 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 from meppp.accounts.models import User
 from meppp.accounts.normalization import normalize_username
+from meppp.configuration.models import RegistrationMode
 from meppp.moderation.models import ReportReason
 from meppp.publishing.models import Topic
 
@@ -40,14 +41,22 @@ class RegistrationForm(FormStyleMixin, UserCreationForm):
         required=False,
         help_text="可选。首版暂不提供邮箱登录或密码找回。",
     )
+    invitation_token = forms.CharField(
+        label="邀请码",
+        max_length=200,
+        help_text="请输入管理员单独发给你的一次性邀请码。",
+        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
+    )
     accept_rules = forms.BooleanField(label="我愿意遵守社区公约")
 
     class Meta(UserCreationForm.Meta):
         model = User
         fields = ("username", "email")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, registration_mode=RegistrationMode.OPEN, **kwargs):
         super().__init__(*args, **kwargs)
+        if registration_mode != RegistrationMode.INVITE:
+            self.fields.pop("invitation_token")
         self.apply_field_styles()
         self.fields["username"].label = "用户名"
         self.fields["username"].help_text = "以后用于登录；不区分大小写。"

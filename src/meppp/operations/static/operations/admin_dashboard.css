@@ -1,0 +1,59 @@
+.operations-grid {
+  display: grid;
+  margin: 18px 0 28px;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.operations-card {
+  padding: 18px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 10px;
+  background: var(--body-bg);
+}
+
+.operations-card h2 {
+  margin: 0 0 8px;
+  color: var(--body-quiet-color);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.operations-value {
+  color: var(--body-fg);
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.operations-detail {
+  margin: 7px 0 0;
+  color: var(--body-quiet-color);
+}
+
+.operations-links {
+  display: grid;
+  padding: 0;
+  margin: 0;
+  gap: 10px;
+  list-style: none;
+}
+
+.operations-links a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 8px;
+}
+
+.operations-badge {
+  min-width: 1.5em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--selected-bg);
+  color: var(--body-fg);
+  text-align: center;
+}

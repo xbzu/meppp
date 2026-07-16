@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'operations/admin_dashboard.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; 运营总览
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    <p class="help">只汇总现有业务数据，不采集页面访问或设备信息。</p>
+
+    <div class="operations-grid" aria-label="运营指标">
+      <section class="operations-card">
+        <h2>待审内容</h2>
+        <div class="operations-value">{{ snapshot.pending_entries }}</div>
+        <p class="operations-detail">等待审核的公开内容</p>
+      </section>
+      <section class="operations-card">
+        <h2>待审评论</h2>
+        <div class="operations-value">{{ snapshot.pending_comments }}</div>
+        <p class="operations-detail">等待审核的评论</p>
+      </section>
+      <section class="operations-card">
+        <h2>待处理举报</h2>
+        <div class="operations-value">{{ snapshot.open_reports }}</div>
+        <p class="operations-detail">尚未分派</p>
+      </section>
+      <section class="operations-card">
+        <h2>已分派举报</h2>
+        <div class="operations-value">{{ snapshot.triaged_reports }}</div>
+        <p class="operations-detail">正在处理中</p>
+      </section>
+      <section class="operations-card">
+        <h2>可用成员</h2>
+        <div class="operations-value">{{ snapshot.active_members }}</div>
+        <p class="operations-detail">当前可用账号</p>
+      </section>
+      <section class="operations-card">
+        <h2>今日新增</h2>
+        <div class="operations-value">{{ snapshot.members_joined_today }}</div>
+        <p class="operations-detail">按站点时区统计</p>
+      </section>
+      <section class="operations-card">
+        <h2>近 7 日新增</h2>
+        <div class="operations-value">{{ snapshot.members_joined_seven_days }}</div>
+        <p class="operations-detail">含今天的 7 个自然日</p>
+      </section>
+      <section class="operations-card">
+        <h2>注册 / 审核</h2>
+        <div class="operations-value">{{ snapshot.registration_mode_label }}</div>
+        <p class="operations-detail">{{ snapshot.moderation_mode_label }}</p>
+      </section>
+    </div>
+
+    <section class="module">
+      <h2>可执行入口</h2>
+      {% if quick_links %}
+        <ul class="operations-links">
+          {% for link in quick_links %}
+            <li>
+              <a href="{{ link.url }}">
+                <span>{{ link.label }}</span>
+                {% if link.count is not None %}<span class="operations-badge">{{ link.count }}</span>{% endif %}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>当前账号没有可执行的后台入口。</p>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

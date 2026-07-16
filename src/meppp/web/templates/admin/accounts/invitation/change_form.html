@@ -1,0 +1,7 @@
+{% extends "admin/change_form.html" %}
+{% block object-tools-items %}
+  {% if invitation_revoke_url %}
+    <li><a href="{{ invitation_revoke_url }}">撤销邀请</a></li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

@@ -9,9 +9,9 @@
       <ol class="join-principles"><li>说清事实和观点的区别</li><li>尊重具体的人</li><li>允许认真地不同意</li></ol>
     </section>
     <section class="auth-card" aria-labelledby="register-title">
-      {% if registration_open %}
-        <h2 id="register-title">创建成员账号</h2>
-        <p>注册后会自动登录。</p>
+      {% if registration_available %}
+        <h2 id="register-title">{% if registration_mode == 'invite' %}使用邀请加入{% else %}创建成员账号{% endif %}</h2>
+        <p>{% if registration_mode == 'invite' %}邀请码只能领取一次，并可能绑定指定邮箱。{% else %}注册后会自动登录。{% endif %}</p>
         <form method="post" class="stacked-form" novalidate>
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next }}">
@@ -22,7 +22,7 @@
         <div class="closed-register">
           <span aria-hidden="true">○</span>
           <h2 id="register-title">注册暂未开放</h2>
-          {% if registration_mode == 'invite' %}<p>站点设置为邀请注册，但邀请凭证流程尚未启用，因此系统会安全地保持关闭。</p>{% else %}<p>管理员目前关闭了新成员注册。已经有账号的成员仍可正常登录。</p>{% endif %}
+          <p>管理员目前关闭了新成员注册。已经有账号的成员仍可正常登录。</p>
           <a class="button-primary button-block" href="{% url 'web:login' %}">前往登录</a>
         </div>
       {% endif %}

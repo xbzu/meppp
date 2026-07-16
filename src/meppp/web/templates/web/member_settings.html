@@ -1,0 +1,26 @@
+{% extends 'web/base.html' %}
+{% block title %}资料与账号 · {{ site_config.site_name }}{% endblock %}
+{% block content %}
+  <div class="form-layout member-settings-layout">
+    <section class="form-surface" aria-labelledby="settings-title">
+      <a class="back-link" href="{% url 'web:member-dashboard' %}"><span aria-hidden="true">←</span> 返回我的社区</a>
+      <p class="eyebrow">PUBLIC PROFILE</p>
+      <h1 id="settings-title">公开资料</h1>
+      <p class="form-lead">这里只管理别人能看到的昵称和简介；用户名、权限与安全记录不会公开。</p>
+      <form method="post" class="stacked-form" novalidate>
+        {% csrf_token %}
+        {% include 'web/_form_fields.html' with form=form only %}
+        <div class="form-actions">
+          <button class="button-primary" type="submit">保存公开资料</button>
+          <a class="button-secondary" href="{% url 'web:member-profile' request.user.public_id %}">预览公开主页</a>
+        </div>
+      </form>
+    </section>
+    <aside class="form-aside account-security-card" aria-label="账号安全">
+      <p class="section-index">ACCOUNT SAFETY</p>
+      <h2>账号安全</h2>
+      <p>密码只用于登录，不会出现在公开资料、通知或审计详情里。</p>
+      <a class="button-secondary button-block" href="{% url 'web:member-password' %}">修改密码</a>
+    </aside>
+  </div>
+{% endblock %}

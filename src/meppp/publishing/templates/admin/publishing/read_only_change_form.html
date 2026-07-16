@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+  {% if content_review_url %}
+    <li><a href="{{ content_review_url }}" class="viewsitelink">审核这项待审内容</a></li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

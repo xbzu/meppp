@@ -1,0 +1,14 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'publishing/admin_review.css' %}">
+{% endblock %}
+
+{% block content_title %}
+  <div class="review-queue-heading">
+    <h1>{{ cl.opts.verbose_name_plural }}</h1>
+    <p>仅显示仍在等待处理的项目，按最早提交优先。每项必须进入专用审核页后才能批准或驳回。</p>
+  </div>
+{% endblock %}

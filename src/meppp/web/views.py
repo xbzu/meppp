@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods, require_POST
 
 from meppp.accounts.normalization import username_identity
@@ -82,11 +83,15 @@ class MemberLogoutView(LogoutView):
     next_page = "/"
 
 
+@sensitive_post_parameters("password1", "password2", "invitation_token")
 @never_cache
 @require_http_methods(["GET", "POST"])
 def register(request):
     configuration = get_site_configuration()
-    registration_open = configuration.registration_mode == RegistrationMode.OPEN
+    registration_available = configuration.registration_mode in {
+        RegistrationMode.OPEN,
+        RegistrationMode.INVITE,
+    }
     next_value = request.POST.get("next") or request.GET.get("next", "")
 
     if request.method == "POST":
@@ -99,26 +104,30 @@ def register(request):
         except RateLimitExceeded as error:
             return _rate_limited(request, error)
 
-        if not registration_open:
+        if not registration_available:
             return render(
                 request,
                 "registration/register.html",
                 {
                     "form": None,
-                    "registration_open": False,
+                    "registration_available": False,
                     "registration_mode": configuration.registration_mode,
                     "next": next_value,
                 },
                 status=403,
             )
 
-        form = RegistrationForm(request.POST)
+        form = RegistrationForm(
+            request.POST,
+            registration_mode=configuration.registration_mode,
+        )
         if form.is_valid():
             try:
                 user = register_member(
                     username=form.cleaned_data["username"],
                     email=form.cleaned_data["email"],
                     password=form.cleaned_data["password1"],
+                    invitation_token=form.cleaned_data.get("invitation_token", ""),
                 )
             except IntegrityError:
                 form.add_error(None, "账号创建发生冲突，请重新选择用户名。")
@@ -135,14 +144,18 @@ def register(request):
                     )
                 )
     else:
-        form = RegistrationForm() if registration_open else None
+        form = (
+            RegistrationForm(registration_mode=configuration.registration_mode)
+            if registration_available
+            else None
+        )
 
     return render(
         request,
         "registration/register.html",
         {
             "form": form,
-            "registration_open": registration_open,
+            "registration_available": registration_available,
             "registration_mode": configuration.registration_mode,
             "next": next_value,
         },

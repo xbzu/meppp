@@ -21,6 +21,7 @@ class UserModelTests(TestCase):
         user.refresh_from_db()
         self.assertEqual(user.email, "member@example.com")
         self.assertIsNotNone(user.public_id)
+        self.assertTrue(Profile.objects.filter(user=user).exists())
 
     def test_nonblank_email_is_case_insensitively_unique(self):
         User.objects.create_user(username="first", email="same@example.com")
@@ -72,28 +73,31 @@ class UserModelTests(TestCase):
 
     def test_profile_uses_username_when_display_name_is_empty(self):
         user = User.objects.create_user(username="member")
-        profile = Profile.objects.create(user=user)
+        profile = user.profile
 
         self.assertEqual(str(profile), "member")
 
+    def test_superuser_creation_also_provisions_a_profile(self):
+        owner = User.objects.create_superuser(username="owner-with-profile")
+
+        self.assertTrue(Profile.objects.filter(user=owner).exists())
+
 
 class RegistrationServiceTests(TestCase):
-    def test_closed_and_invite_modes_are_enforced_in_the_service(self):
+    def test_closed_mode_is_enforced_in_the_service(self):
         configuration = SiteConfiguration.objects.create(
             pk=1,
             registration_mode=RegistrationMode.CLOSED,
         )
 
-        for mode in (RegistrationMode.CLOSED, RegistrationMode.INVITE):
-            with self.subTest(mode=mode):
-                configuration.registration_mode = mode
-                configuration.save()
-                with self.assertRaisesMessage(ValidationError, "未开放注册"):
-                    register_member(
-                        username=f"member-{mode}",
-                        email="",
-                        password="a-long-test-password",
-                    )
+        configuration.registration_mode = RegistrationMode.CLOSED
+        configuration.save()
+        with self.assertRaisesMessage(ValidationError, "未开放注册"):
+            register_member(
+                username="member-closed",
+                email="",
+                password="a-long-test-password",
+            )
 
         self.assertFalse(User.objects.exists())
 

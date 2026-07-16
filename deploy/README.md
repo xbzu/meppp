@@ -11,6 +11,8 @@ This packet targets one MEPPP container behind the existing aaPanel Nginx on a s
 5. Keep registration closed for the first production smoke test.
 6. Change Cloudflare DNS only after origin TLS, application health, backup, and rollback checks pass.
 
+Container startup automatically applies migrations, reconciles the code-defined `运营` and `审核` permission groups, and collects static files. It does not create an owner, assign staff, issue invitations, or change registration mode.
+
 ## aaPanel layout
 
 Recommended host paths:

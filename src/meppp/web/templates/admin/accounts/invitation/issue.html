@@ -1,0 +1,72 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+{% block extrahead %}
+  {{ block.super }}
+  <script src="{% static 'web/js/admin_invitation.js' %}" defer></script>
+{% endblock %}
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'web/css/admin_invitation.css' %}">
+{% endblock %}
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; <a href="{{ changelist_url }}">注册邀请</a>
+    &rsaquo; 签发
+  </div>
+{% endblock %}
+{% block content %}
+  <div id="content-main">
+    {% if issued_invitation %}
+      <div class="module aligned">
+        <h2>邀请已经签发</h2>
+        <div class="form-row">
+          <p><strong>现在复制邀请码。离开本页后，系统不会再次显示明文。</strong></p>
+          <div class="invitation-token-row">
+            <input
+              id="issued-invitation-token"
+              type="text"
+              value="{{ plaintext_token }}"
+              readonly
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="新签发的邀请码"
+            >
+            <button
+              type="button"
+              class="button default"
+              data-copy-invitation="issued-invitation-token"
+              data-copy-status="invitation-copy-status"
+            >复制邀请码</button>
+          </div>
+          <p id="invitation-copy-status" class="help invitation-copy-status" role="status" aria-live="polite"></p>
+          <p class="help">
+            提示尾号：…{{ issued_invitation.hint }}；有效期至 {{ issued_invitation.expires_at }}。
+          </p>
+        </div>
+        <div class="submit-row">
+          <a class="button" href="{% url 'admin:accounts_invitation_change' issued_invitation.pk %}">查看邀请记录</a>
+          <a class="button" href="{% url 'admin:accounts_invitation_add' %}">继续签发</a>
+        </div>
+      </div>
+    {% else %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+        <fieldset class="module aligned">
+          {% for field in form %}
+            <div class="form-row{% if field.errors %} errors{% endif %}">
+              {{ field.errors }}
+              <div class="flex-container">{{ field.label_tag }} {{ field }}</div>
+              {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+            </div>
+          {% endfor %}
+        </fieldset>
+        <div class="submit-row">
+          <input type="submit" value="签发邀请" class="default">
+          <a class="closelink" href="{{ changelist_url }}">取消</a>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+{% endblock %}

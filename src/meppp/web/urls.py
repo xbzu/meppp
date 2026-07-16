@@ -2,7 +2,7 @@ from django.urls import path
 
 from meppp.moderation.models import SubjectType
 
-from . import views
+from . import member_views, views
 
 app_name = "web"
 
@@ -11,6 +11,23 @@ urlpatterns = [
     path("login/", views.MemberLoginView.as_view(), name="login"),
     path("logout/", views.MemberLogoutView.as_view(), name="logout"),
     path("join/", views.register, name="register"),
+    path("me/", member_views.dashboard, name="member-dashboard"),
+    path("me/settings/", member_views.settings, name="member-settings"),
+    path(
+        "me/password/",
+        member_views.MemberPasswordChangeView.as_view(),
+        name="member-password",
+    ),
+    path(
+        "me/entry/<uuid:public_id>/withdraw/",
+        member_views.entry_withdraw,
+        name="member-entry-withdraw",
+    ),
+    path(
+        "me/comment/<uuid:public_id>/withdraw/",
+        member_views.comment_withdraw,
+        name="member-comment-withdraw",
+    ),
     path("write/", views.entry_create, name="entry-create"),
     path("entry/<uuid:public_id>/", views.entry_detail, name="entry-detail"),
     path("entry/<uuid:public_id>/comment/", views.comment_create, name="comment-create"),

@@ -70,7 +70,7 @@ from .forms import (
     ReportForm,
 )
 from .nonces import consume_nonce, issue_nonce, nonce_is_issued
-from .rate_limit import RateLimitExceeded, enforce_rate_limit
+from .rate_limit import RateLimitExceeded, client_ip, enforce_rate_limit
 from .services import DuplicateSubmission, add_comment_once, publish_entry_once
 
 RECOVERY_NOTICE_SESSION_KEY = "meppp.account_recovery_notice"
@@ -127,6 +127,10 @@ def _rate_limited(request, error: RateLimitExceeded):
     return response
 
 
+def _client_bound_identity(request, identity: str) -> str:
+    return "\x00".join((client_ip(request) or "unknown-client", identity))
+
+
 @method_decorator(never_cache, name="dispatch")
 class MemberLoginView(LoginView):
     authentication_form = MemberAuthenticationForm
@@ -134,7 +138,10 @@ class MemberLoginView(LoginView):
     redirect_authenticated_user = True
 
     def post(self, request, *args, **kwargs):
-        identity = username_identity(request.POST.get("username", ""))
+        identity = _client_bound_identity(
+            request,
+            username_identity(request.POST.get("username", "")),
+        )
         try:
             enforce_rate_limit(request, scope="login", identity=identity)
         except RateLimitExceeded as error:
@@ -163,7 +170,10 @@ def register(request):
             enforce_rate_limit(
                 request,
                 scope="register",
-                identity=username_identity(request.POST.get("username", "")),
+                identity=_client_bound_identity(
+                    request,
+                    username_identity(request.POST.get("username", "")),
+                ),
             )
         except RateLimitExceeded as error:
             return _rate_limited(request, error)
@@ -299,11 +309,14 @@ def recovery_code_rotate(request):
 def account_recovery(request):
     form = AccountRecoveryForm(request.POST or None)
     if request.method == "POST":
-        identity = "\x00".join(
-            (
-                username_identity(request.POST.get("username", "")),
-                request.POST.get("email", "").strip().lower(),
-            )
+        identity = _client_bound_identity(
+            request,
+            "\x00".join(
+                (
+                    username_identity(request.POST.get("username", "")),
+                    request.POST.get("email", "").strip().lower(),
+                )
+            ),
         )
         try:
             enforce_rate_limit(request, scope="recover", identity=identity)

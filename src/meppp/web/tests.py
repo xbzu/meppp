@@ -411,11 +411,29 @@ class AuthenticationUiTests(WebTestCase):
             response = self.client.post(
                 reverse("web:login"),
                 {"username": "Ａ", "password": PASSWORD},
-                REMOTE_ADDR="198.51.100.11",
+                REMOTE_ADDR="198.51.100.10",
             )
 
         self.assertEqual(response.status_code, 429)
         self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_another_ip_cannot_globally_lock_a_known_login(self):
+        member = self.create_member("public-member")
+
+        with patch.dict(RATE_LIMITS, {"login": RateLimit(1, 60)}):
+            self.client.post(
+                reverse("web:login"),
+                {"username": member.username, "password": "wrong"},
+                REMOTE_ADDR="198.51.100.10",
+            )
+            response = self.client.post(
+                reverse("web:login"),
+                {"username": member.username, "password": PASSWORD},
+                REMOTE_ADDR="198.51.100.11",
+            )
+
+        self.assertRedirects(response, reverse("web:home"))
+        self.assertEqual(int(self.client.session["_auth_user_id"]), member.pk)
 
     def test_registration_rate_limit_blocks_repeated_attempts_by_ip(self):
         self.open_site()
@@ -469,12 +487,40 @@ class AuthenticationUiTests(WebTestCase):
                     "password2": PASSWORD,
                     "accept_rules": "on",
                 },
-                REMOTE_ADDR="198.51.100.22",
+                REMOTE_ADDR="198.51.100.21",
             )
 
         self.assertEqual(response.status_code, 429)
         self.assertFalse(User.objects.filter(username__iexact="A").exists())
         self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_another_ip_cannot_reserve_a_registration_rate_bucket(self):
+        self.open_site()
+        with patch.dict(RATE_LIMITS, {"register": RateLimit(1, 60)}):
+            self.client.post(
+                reverse("web:register"),
+                {
+                    "username": "available-name",
+                    "email": "",
+                    "password1": "short",
+                    "password2": "short",
+                },
+                REMOTE_ADDR="198.51.100.21",
+            )
+            response = self.client.post(
+                reverse("web:register"),
+                {
+                    "username": "available-name",
+                    "email": "member@example.test",
+                    "password1": PASSWORD,
+                    "password2": PASSWORD,
+                    "accept_rules": "on",
+                },
+                REMOTE_ADDR="198.51.100.22",
+            )
+
+        self.assertRedirects(response, reverse("web:recovery-code"))
+        self.assertTrue(User.objects.filter(username="available-name").exists())
 
 
 @override_settings(

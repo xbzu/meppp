@@ -191,6 +191,38 @@ class AccountRecoveryTests(TestCase):
 
         self.assertEqual(response.status_code, 429)
 
+    def test_another_ip_cannot_globally_lock_account_recovery(self):
+        user = User.objects.create_user(
+            username="cross-ip-member",
+            email="cross-ip@example.test",
+            password=PASSWORD,
+        )
+        recovery_code = issue_recovery_code(user=user)
+        payload = {
+            "username": user.username,
+            "email": user.email,
+            "recovery_code": "incorrect",
+            "password1": NEW_PASSWORD,
+            "password2": NEW_PASSWORD,
+        }
+
+        with patch.dict(RATE_LIMITS, {"recover": RateLimit(1, 60)}):
+            self.client.post(
+                reverse("web:account-recovery"),
+                payload,
+                REMOTE_ADDR="198.51.100.30",
+            )
+            payload["recovery_code"] = recovery_code
+            response = self.client.post(
+                reverse("web:account-recovery"),
+                payload,
+                REMOTE_ADDR="198.51.100.31",
+            )
+
+        self.assertRedirects(response, reverse("web:recovery-code"))
+        user.refresh_from_db()
+        self.assertTrue(user.check_password(NEW_PASSWORD))
+
     def test_logged_in_member_can_rotate_code_only_with_current_password(self):
         user = User.objects.create_user(
             username="member",

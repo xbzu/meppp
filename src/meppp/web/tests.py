@@ -97,9 +97,33 @@ class PublicReadTests(WebTestCase):
     def test_public_pages_have_security_headers(self):
         response = self.client.get(reverse("web:home"))
 
-        self.assertIn("default-src 'self'", response.headers["Content-Security-Policy"])
+        content_security_policy = response.headers["Content-Security-Policy"]
+        self.assertIn("default-src 'self'", content_security_policy)
+        self.assertIn(
+            "script-src 'self' https://static.cloudflareinsights.com/beacon.min.js "
+            "https://static.cloudflareinsights.com/beacon.min.js/;",
+            content_security_policy,
+        )
+        self.assertIn("connect-src 'self'", content_security_policy)
+        self.assertNotIn("'unsafe-inline'", content_security_policy)
+        self.assertNotIn("*.cloudflareinsights.com", content_security_policy)
+        self.assertNotIn("no-transform", response.headers.get("Cache-Control", ""))
         self.assertEqual(response.headers["Referrer-Policy"], "strict-origin-when-cross-origin")
         self.assertEqual(response.headers["X-Frame-Options"], "DENY")
+
+    def test_admin_keeps_strict_csp_and_disables_transformations(self):
+        owner = User.objects.create_superuser(username="owner", password=PASSWORD)
+        self.client.force_login(owner)
+
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertNotIn(
+            "static.cloudflareinsights.com",
+            response.headers["Content-Security-Policy"],
+        )
+        cache_control = response.headers["Cache-Control"]
+        for directive in ("private", "no-store", "no-transform"):
+            self.assertIn(directive, cache_control)
 
     def test_hidden_pending_and_inactive_entry_details_are_not_found(self):
         for entry in (self.hidden, self.pending, self.inactive_entry):
@@ -227,6 +251,14 @@ class AuthenticationUiTests(WebTestCase):
         self.assertContains(home_response, "查看注册状态")
         self.assertContains(login_response, f'href="{register_url}"')
         self.assertContains(login_response, "查看注册状态")
+
+    def test_account_entry_pages_disable_transformations(self):
+        for route_name in ("web:login", "web:register", "web:account-recovery"):
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                cache_control = response.headers["Cache-Control"]
+                for directive in ("private", "no-store", "no-transform"):
+                    self.assertIn(directive, cache_control)
 
     def test_registration_is_closed_by_default_for_get_and_post(self):
         get_response = self.client.get(reverse("web:register"))
@@ -369,7 +401,10 @@ class AuthenticationUiTests(WebTestCase):
         home_response = self.client.get(reverse("web:home"))
 
         self.assertRedirects(response, reverse("web:home"))
-        self.assertEqual(home_response.headers["Cache-Control"], "private, no-store")
+        self.assertEqual(
+            home_response.headers["Cache-Control"],
+            "private, no-store, no-transform",
+        )
         self.assertIn("Cookie", home_response.headers["Vary"])
 
     def test_logout_is_post_only_and_clears_session(self):

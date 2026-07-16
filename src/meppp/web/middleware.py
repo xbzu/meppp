@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.utils.cache import patch_vary_headers
+from django.utils.cache import patch_cache_control, patch_vary_headers
 
 
 class PublicSecurityHeadersMiddleware:
@@ -16,17 +16,22 @@ class PublicSecurityHeadersMiddleware:
         )
         response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
 
-        if request.path.startswith("/admin/"):
+        is_admin_path = request.path.startswith("/admin/")
+        if is_admin_path:
             response.headers.setdefault(
                 "Content-Security-Policy",
                 "default-src 'self'; img-src 'self' data:; object-src 'none'; "
                 "base-uri 'self'; frame-ancestors 'none'",
             )
         else:
+            # Cloudflare injects both the base beacon and versioned descendants
+            # beneath /beacon.min.js/, so keep both path-scoped sources explicit.
             response.headers.setdefault(
                 "Content-Security-Policy",
                 "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; "
-                "script-src 'self'; font-src 'self'; connect-src 'self'; "
+                "script-src 'self' https://static.cloudflareinsights.com/beacon.min.js "
+                "https://static.cloudflareinsights.com/beacon.min.js/; "
+                "font-src 'self'; connect-src 'self'; "
                 "frame-src https://www.youtube-nocookie.com; object-src 'none'; "
                 "base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
             )
@@ -37,9 +42,14 @@ class PublicSecurityHeadersMiddleware:
             "/recover/",
             "/recovery-code/",
         } or request.path.startswith("/notifications/")
-        if getattr(request, "user", None) is not None and (
-            request.user.is_authenticated or is_private_path
-        ):
-            response.headers["Cache-Control"] = "private, no-store"
+        user = getattr(request, "user", None)
+        is_authenticated = user is not None and user.is_authenticated
+        if is_admin_path or is_authenticated or is_private_path:
+            patch_cache_control(
+                response,
+                private=True,
+                no_store=True,
+                no_transform=True,
+            )
             patch_vary_headers(response, ("Cookie",))
         return response

@@ -9,6 +9,7 @@ from django.urls import reverse
 
 from meppp.accounts.models import User
 from meppp.audit.models import AuditEvent
+from meppp.notifications.models import Notification, NotificationKind
 from meppp.publishing.models import Comment, ContentState, Entry
 
 from .models import (
@@ -26,11 +27,12 @@ from .services import MAX_MODERATION_REASON_LENGTH, close_report, triage_report
 class ModerationServiceTests(TestCase):
     def setUp(self):
         self.reporter = User.objects.create_user(username="reporter")
+        self.author = User.objects.create_user(username="content-author")
         self.moderator = User.objects.create_superuser(
             username="moderator",
             password="moderator-test-password",
         )
-        self.entry = Entry.objects.create(author=self.reporter, body="reported entry")
+        self.entry = Entry.objects.create(author=self.author, body="reported entry")
         self.report = Report.objects.create(
             reporter=self.reporter,
             subject_type=SubjectType.ENTRY,
@@ -63,6 +65,16 @@ class ModerationServiceTests(TestCase):
         self.assertEqual(event.metadata["resolved_by"], str(self.moderator.public_id))
         self.assertEqual(event.metadata["outcome"]["before"], ContentState.PUBLISHED)
         self.assertEqual(event.metadata["outcome"]["after"], ContentState.HIDDEN)
+        notification = Notification.objects.get(kind=NotificationKind.MODERATION)
+        self.assertEqual(notification.recipient, self.entry.author)
+        self.assertIsNone(notification.actor)
+        self.assertEqual(notification.payload["content_type"], SubjectType.ENTRY)
+        self.assertEqual(notification.payload["content_public_id"], str(self.entry.public_id))
+        self.assertEqual(notification.payload["outcome"], "hidden")
+        self.assertNotIn("reason", notification.payload)
+        self.assertNotIn(self.reporter.username, notification.payload.values())
+        self.assertNotIn(str(self.reporter.public_id), notification.payload.values())
+        self.assertFalse(Notification.objects.filter(recipient=self.reporter).exists())
 
     def test_rejected_report_makes_no_target_change(self):
         report = close_report(
@@ -76,6 +88,27 @@ class ModerationServiceTests(TestCase):
         self.entry.refresh_from_db()
         self.assertEqual(report.status, ReportStatus.REJECTED)
         self.assertEqual(self.entry.state, ContentState.PUBLISHED)
+        self.assertFalse(Notification.objects.exists())
+
+    @patch("meppp.moderation.services.notify", side_effect=RuntimeError("notification failed"))
+    def test_notification_failure_rolls_back_report_and_content_action(self, notify):
+        with self.assertRaisesMessage(RuntimeError, "notification failed"):
+            close_report(
+                report=self.report,
+                actor=self.moderator,
+                status=ReportStatus.RESOLVED,
+                action=ModerationAction.HIDE_ENTRY,
+                reason="must remain atomic",
+            )
+
+        self.report.refresh_from_db()
+        self.entry.refresh_from_db()
+        self.assertEqual(self.report.status, ReportStatus.OPEN)
+        self.assertEqual(self.entry.state, ContentState.PUBLISHED)
+        self.assertEqual(ModerationDecision.objects.count(), 0)
+        self.assertEqual(AuditEvent.objects.count(), 0)
+        self.assertFalse(Notification.objects.exists())
+        notify.assert_called_once()
 
     def test_report_cannot_be_closed_twice_and_target_change_rolls_back(self):
         close_report(
@@ -164,6 +197,7 @@ class ModerationServiceTests(TestCase):
         event = AuditEvent.objects.get(target_public_id=second_report.public_id)
         self.assertEqual(second_decision.action, ModerationAction.HIDE_ENTRY)
         self.assertTrue(event.metadata["outcome"]["already_applied"])
+        self.assertEqual(Notification.objects.count(), 1)
 
     def test_triage_assigns_a_moderator_and_records_complete_audit_context(self):
         assignee = User.objects.create_user(username="assignee", is_staff=True)
@@ -278,7 +312,7 @@ class ModerationServiceTests(TestCase):
     def test_comment_hide_and_restore_actions(self):
         comment = Comment.objects.create(
             entry=self.entry,
-            author=self.reporter,
+            author=self.author,
             body="reported comment",
         )
         report = self._new_report(SubjectType.COMMENT, comment.public_id)
@@ -302,6 +336,20 @@ class ModerationServiceTests(TestCase):
         )
         comment.refresh_from_db()
         self.assertEqual(comment.state, ContentState.PUBLISHED)
+        notifications = list(
+            Notification.objects.filter(
+                recipient=self.author,
+                kind=NotificationKind.MODERATION,
+            ).order_by("created_at")
+        )
+        self.assertEqual(
+            [notification.payload["content_type"] for notification in notifications],
+            [SubjectType.COMMENT, SubjectType.COMMENT],
+        )
+        self.assertEqual(
+            [notification.payload["outcome"] for notification in notifications],
+            ["hidden", "restored"],
+        )
 
     def test_user_suspend_and_restore_actions(self):
         target = User.objects.create_user(username="reported-user")

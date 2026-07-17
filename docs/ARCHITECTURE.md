@@ -1,6 +1,6 @@
 # Architecture
 
-MEPPP is a modular Django monolith: one codebase, one application process, and SQLite by default.
+MEPPP is a modular Django monolith: one codebase, one application worker, and SQLite by default.
 
 ## Module boundaries
 
@@ -30,7 +30,7 @@ Append-only models reject instance and QuerySet updates/deletes, and their actor
 
 ## Database path
 
-SQLite uses WAL mode, foreign keys, a 20-second busy timeout, and short `IMMEDIATE` write transactions. The application stays at one process while SQLite is active.
+SQLite uses WAL mode, foreign keys, a 20-second busy timeout, and short `IMMEDIATE` write transactions. The application stays at one worker while SQLite is active.
 
 Move to PostgreSQL before running multiple application replicas or after sustained lock contention. The ORM models, service boundaries, public identifiers, and migration history remain; the deployment configuration and load-sensitive queries change.
 
@@ -46,4 +46,4 @@ Images are decoded with a fixed JPEG/PNG/WebP allowlist, checked against byte, e
 
 Videos use a separate one-to-one asset: ffprobe accepts only the documented MP4/WebM codec pairs, FFmpeg remuxes without re-encoding while removing metadata and generates a bounded WebP poster. State-aware application routes provide same-origin poster delivery and bounded HTTP Range playback. External X/YouTube references store only canonical IDs and structured attribution obtained from fixed official oEmbed endpoints; they never share the local-media storage path.
 
-Rate limits use the single-process Django cache with HMAC-obscured client and account keys; this matches the one-process SQLite deployment boundary. Direct requests use the socket address. A configured trusted proxy must be in an explicit IP/CIDR allowlist and overwrite `X-Real-IP` with one canonical address; untrusted forwarded headers are ignored. A move to multiple processes requires a shared cache or edge limiter before scaling the application.
+Rate limits use the single-process Django cache with HMAC-obscured client and account keys; the short-lived, display-once recovery-code notice uses a separate in-process cache. Both match the one-process SQLite deployment boundary. Direct requests use the socket address. A configured trusted proxy must be in an explicit IP/CIDR allowlist and overwrite `X-Real-IP` with one canonical address; untrusted forwarded headers are ignored. A move to multiple processes requires shared storage for both caches or an equivalent edge limiter and secure recovery-notice handoff before scaling the application.

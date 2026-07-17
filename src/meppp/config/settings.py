@@ -314,7 +314,10 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_MEPPP_PROXY_PROTO", "https")
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 24 * 1024 * 1024
-DATA_UPLOAD_MAX_NUMBER_FILES = 4
+# Let the largest invalid media combination reach EntryForm so members receive
+# the controlled image/video exclusivity error instead of Django's bare 400.
+# EntryForm still enforces the four-image hard cap.
+DATA_UPLOAD_MAX_NUMBER_FILES = 5
 FILE_UPLOAD_PERMISSIONS = 0o600
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
 MEDIA_MIN_FREE_BYTES = env_nonnegative_int("MEPPP_MEDIA_MIN_FREE_BYTES", 256 * 1024 * 1024)

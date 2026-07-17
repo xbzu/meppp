@@ -60,8 +60,10 @@ Build without assuming a buildx plugin, then prove the immutable image exists:
 
 ```bash
 cd /opt/meppp
-DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.8 .
-docker image inspect meppp:v0.1.0-rc.8 >/dev/null
+RELEASE_TAG=v0.1.0-rc.9
+test -z "$(docker image ls --quiet meppp:${RELEASE_TAG})"
+DOCKER_BUILDKIT=1 docker build --pull --tag "meppp:${RELEASE_TAG}" .
+docker image inspect "meppp:${RELEASE_TAG}" >/dev/null
 docker compose up --detach --no-build --wait app
 ```
 

@@ -48,3 +48,20 @@ class ModerationNotificationPageTests(TestCase):
         self.assertContains(response, "已通过审核")
         self.assertContains(response, "审核说明：回应具体且符合规则")
         self.assertContains(response, reverse("web:member-dashboard"))
+
+    def test_report_action_explains_hidden_content_without_internal_report_details(self):
+        Notification.objects.create(
+            recipient=self.member,
+            kind=NotificationKind.MODERATION,
+            payload={
+                "content_type": "entry",
+                "outcome": "hidden",
+            },
+        )
+
+        response = self.client.get(reverse("web:notifications"))
+
+        self.assertContains(response, "你的内容")
+        self.assertContains(response, "已因举报处置被隐藏")
+        self.assertNotContains(response, "审核说明")
+        self.assertNotContains(response, "举报人")

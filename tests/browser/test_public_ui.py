@@ -229,17 +229,35 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.assert_browser_clean()
 
     def test_tablet_feed_uses_paopao_drawer_without_overflow(self):
-        self.page.set_viewport_size({"width": 820, "height": 900})
-        self.open("/")
+        for width in (820, 822, 900, 959):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({"width": width, "height": 900})
+                self.open("/")
+                expect(self.page.locator(".feed-panel")).to_be_visible()
+                expect(self.page.locator(".community-sidebar")).to_be_hidden()
+                expect(self.page.locator(".discover-rail")).to_be_hidden()
+                menu = self.page.get_by_label("打开导航")
+                expect(menu).to_be_visible()
+                self.assertTrue(
+                    self.page.locator("html").evaluate(
+                        "element => element.scrollWidth <= element.clientWidth"
+                    )
+                )
 
-        expect(self.page.locator(".feed-panel")).to_be_visible()
-        expect(self.page.locator(".community-sidebar")).to_be_hidden()
-        expect(self.page.locator(".discover-rail")).to_be_hidden()
-        menu = self.page.get_by_label("打开导航")
-        expect(menu).to_be_visible()
         menu.click()
         expect(self.page.locator("#mobile-discovery")).to_be_visible()
         self.page.screenshot(path=RESULTS_DIR / "public-home-tablet.png", full_page=True)
+
+        self.page.set_viewport_size({"width": 960, "height": 900})
+        self.open("/")
+        expect(self.page.locator(".community-sidebar")).to_be_visible()
+        expect(self.page.locator(".discover-rail")).to_be_visible()
+        expect(self.page.get_by_label("打开导航")).to_be_hidden()
+        self.assertTrue(
+            self.page.locator("html").evaluate(
+                "element => element.scrollWidth <= element.clientWidth"
+            )
+        )
         self.assert_browser_clean()
 
     def test_member_can_publish_comment_and_like_without_javascript_errors(self):
@@ -305,6 +323,25 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.get_by_label("选择图片").set_input_files(payloads)
         for index, value in enumerate(("红色记录", "蓝色记录", "", "紫色记录")):
             self.page.locator("[data-image-alt]").nth(index).fill(value)
+
+        last_alt = self.page.locator("[data-image-alt]").last
+        last_alt.scroll_into_view_if_needed()
+        last_alt_box = last_alt.bounding_box()
+        action_box = self.page.locator(".composer-page .form-actions").bounding_box()
+        self.assertIsNotNone(last_alt_box)
+        self.assertIsNotNone(action_box)
+        self.assertEqual(
+            self.page.locator(".composer-page .form-actions").evaluate(
+                "element => getComputedStyle(element).position"
+            ),
+            "sticky",
+        )
+        self.assertLess(action_box["y"], self.page.evaluate("window.innerHeight"))
+        self.assertLessEqual(
+            last_alt_box["y"] + last_alt_box["height"],
+            action_box["y"],
+            "移动发布栏不应遮挡最后一项图片说明",
+        )
 
         self.page.evaluate("window.scrollTo(0, 0)")
         self.page.screenshot(path=RESULTS_DIR / "composer-images-mobile.png", full_page=True)
@@ -559,6 +596,15 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         )
         self.page.set_viewport_size({"width": 390, "height": 844})
         expect(self.page.get_by_role("heading", name="我的社区")).to_be_visible()
+        message_box = self.page.locator(".message-stack").bounding_box()
+        header_box = self.page.locator(".inner-header").bounding_box()
+        self.assertIsNotNone(message_box)
+        self.assertIsNotNone(header_box)
+        self.assertGreaterEqual(
+            message_box["y"],
+            header_box["y"] + header_box["height"],
+            "移动提示条不应覆盖头部品牌",
+        )
         self.page.screenshot(
             path=RESULTS_DIR / "member-record-mobile.png",
             full_page=True,

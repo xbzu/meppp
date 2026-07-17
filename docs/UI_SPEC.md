@@ -42,8 +42,8 @@ go-postery commit `1bcebf66c70bec6d12f0c2be812984cd69b5de57` (MIT, Copyright 202
 ## Responsive contract
 
 - Wide desktop: 200px compact navigation, 620px stream, 240px discovery rail, and small inter-column gaps.
-- `822–1100px`: the left navigation collapses to icons while the 620px stream and 240px discovery rail remain visible.
-- `<= 821px`: both rails are hidden; the stream fills the available width and the title-bar menu opens a 312px left drawer.
+- `960–1100px`: the left navigation collapses to icons while the 620px stream and 240px discovery rail remain visible.
+- `<= 959px`: both rails are hidden; the stream fills the available width and the title-bar menu opens a 312px left drawer.
 - Minimum interactive height is 44px where layout permits.
 - Media layout is one-up, two-up, three with a spanning final image, or a two-by-two grid.
 

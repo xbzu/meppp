@@ -4,6 +4,7 @@ import json
 import tempfile
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -66,6 +67,70 @@ class MemberImageUploadTests(TestCase):
         self.assertTrue(
             all(name.endswith(".webp") for name in entry.attachments.values_list("file", flat=True))
         )
+
+    @patch("meppp.web.views.process_video_upload")
+    def test_four_images_and_video_return_controlled_exclusivity_error(self, process_video):
+        response = self.client.post(
+            reverse("web:entry-create"),
+            {
+                "body": "冲突媒体不会进入处理管线",
+                "images": [
+                    upload_image(name="one.jpg", color="red"),
+                    upload_image(name="two.jpg", color="blue"),
+                    upload_image(name="three.jpg", color="yellow"),
+                    upload_image(name="four.jpg", color="purple"),
+                ],
+                "image_alt_texts": "[]",
+                "video": SimpleUploadedFile(
+                    "clip.mp4",
+                    b"not-processed",
+                    content_type="video/mp4",
+                ),
+                "nonce": self.nonce(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "一条动态请选择图片或视频")
+        self.assertEqual(Entry.objects.count(), 0)
+        self.assertEqual(Attachment.objects.count(), 0)
+        process_video.assert_not_called()
+
+    def test_five_images_reach_and_keep_the_four_image_form_cap(self):
+        response = self.client.post(
+            reverse("web:entry-create"),
+            {
+                "body": "仍然不能绕过四图上限",
+                "images": [upload_image(name=f"{index}.jpg") for index in range(5)],
+                "image_alt_texts": "[]",
+                "nonce": self.nonce(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "每条内容最多上传 4 张图片")
+        self.assertEqual(Entry.objects.count(), 0)
+        self.assertEqual(Attachment.objects.count(), 0)
+
+    def test_six_file_parts_remain_blocked_at_the_request_parser_boundary(self):
+        response = self.client.post(
+            reverse("web:entry-create"),
+            {
+                "body": "超过请求文件数上限",
+                "images": [upload_image(name=f"{index}.jpg") for index in range(5)],
+                "video": SimpleUploadedFile(
+                    "clip.mp4",
+                    b"sixth-file-part",
+                    content_type="video/mp4",
+                ),
+                "image_alt_texts": "[]",
+                "nonce": self.nonce(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Entry.objects.count(), 0)
+        self.assertEqual(Attachment.objects.count(), 0)
 
     def test_invalid_image_does_not_consume_nonce_or_create_files(self):
         token = self.nonce()

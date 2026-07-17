@@ -286,6 +286,18 @@ class AuthenticationUiTests(WebTestCase):
         self.assertContains(response, "使用邀请加入")
         self.assertContains(response, "邀请码")
 
+    def test_open_registration_uses_member_facing_password_guidance(self):
+        self.open_site()
+
+        response = self.client.get(reverse("web:register"))
+
+        self.assertContains(
+            response,
+            "至少 8 个字符；不能与用户名或邮箱过于相似，也不能使用常见密码或纯数字。",
+        )
+        self.assertContains(response, "请再次输入同一密码。")
+        self.assertNotContains(response, "你的密码不能与你的其他个人信息太相似")
+
     def test_invite_registration_claims_the_token_and_logs_the_member_in(self):
         self.open_site(registration_mode=RegistrationMode.INVITE)
         owner = User.objects.create_superuser(username="owner")

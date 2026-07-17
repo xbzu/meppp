@@ -195,7 +195,12 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page.get_by_role("heading", name="广场", exact=True)).to_be_visible()
         expect(self.page.locator(".paopao-shell")).to_be_visible()
         expect(self.page.locator(".stream-panel")).to_be_visible()
-        expect(self.page.locator(".sidebar-brand-mark").first).to_be_visible()
+        sidebar_brand = self.page.locator(".community-sidebar .sidebar-brand")
+        expect(sidebar_brand.locator(".sidebar-brand-mark")).to_be_visible()
+        expect(sidebar_brand.locator(".brand-name")).to_be_visible()
+        expect(sidebar_brand.locator(".brand-name")).to_have_text("冒泡")
+        expect(sidebar_brand.locator(".brand-product")).to_be_visible()
+        expect(sidebar_brand.locator(".brand-product")).to_have_text("meppp")
         expect(self.page.get_by_text("小社区不需要追赶每一种功能")).to_be_visible()
         expect(self.page.get_by_role("link", name="免费注册")).to_be_visible()
         expect(self.page.get_by_text("免费注册后可发文字", exact=False)).to_be_visible()
@@ -282,12 +287,31 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
 
         menu.click()
         expect(self.page.locator("#mobile-discovery")).to_be_visible()
+        drawer_brand = self.page.locator(".mobile-drawer .sidebar-brand")
+        expect(drawer_brand.locator(".brand-name")).to_be_visible()
+        expect(drawer_brand.locator(".brand-name")).to_have_text("冒泡")
+        expect(drawer_brand.locator(".brand-product")).to_be_visible()
+        expect(drawer_brand.locator(".brand-product")).to_have_text("meppp")
         self.page.screenshot(path=RESULTS_DIR / "public-home-tablet.png", full_page=True)
 
-        self.page.set_viewport_size({"width": 960, "height": 900})
+        for width in (960, 1100):
+            self.page.set_viewport_size({"width": width, "height": 900})
+            self.open("/")
+            expect(self.page.locator(".community-sidebar")).to_be_visible()
+            expect(self.page.locator(".discover-rail")).to_be_visible()
+            expect(self.page.locator(".community-sidebar .sidebar-brand-copy")).to_be_hidden()
+            expect(self.page.get_by_label("打开导航")).to_be_hidden()
+            self.assertTrue(
+                self.page.locator("html").evaluate(
+                    "element => element.scrollWidth <= element.clientWidth"
+                )
+            )
+
+        self.page.set_viewport_size({"width": 1101, "height": 900})
         self.open("/")
         expect(self.page.locator(".community-sidebar")).to_be_visible()
         expect(self.page.locator(".discover-rail")).to_be_visible()
+        expect(self.page.locator(".community-sidebar .sidebar-brand-copy")).to_be_visible()
         expect(self.page.get_by_label("打开导航")).to_be_hidden()
         self.assertTrue(
             self.page.locator("html").evaluate(

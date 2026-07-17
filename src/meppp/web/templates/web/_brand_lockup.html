@@ -1,6 +1,6 @@
 {% load static %}
-<img class="brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="36" height="36">
-<span class="brand-lockup-copy">
+<img class="{{ brand_mark_class|default:'brand-mark' }}" src="{% static 'web/img/mark.svg' %}" alt="" width="36" height="36">
+<span class="brand-lockup-copy{% if brand_copy_class %} {{ brand_copy_class }}{% endif %}">
   <strong class="brand-name">{{ site_config.site_name }}</strong>
   <span class="brand-product" aria-hidden="true">meppp</span>
 </span>

@@ -29,12 +29,12 @@ go-postery commit `1bcebf66c70bec6d12f0c2be812984cd69b5de57` (MIT, Copyright 202
 
 | Page | Public behaviour |
 | --- | --- |
-| Home | Latest/following stream, text search, topics, registration or writing prompt |
+| Home | Latest/following stream, text search, topics, registration prompt, or a real inline text/image/video/source composer that posts back to the stream |
 | Entry | Full text, topics, like state, flat comments, bound report links |
 | Member | Public name, bio, counts, public entries, follow state |
 | Login/register | Public member authentication, visible registration entry, fail-closed registration modes |
 | My community | Recipient-only content states, profile/password settings, and author withdrawal |
-| Composer | Distinct text, image, video, X source, YouTube source, and topic modes; media-only publishing; provider recognition; pending state in pre-moderation mode |
+| Composer | The home composer and `/write/` fallback share one server-side pipeline with distinct text, image, video, X source, YouTube source, and topic modes; media-only publishing; provider recognition; pending state in pre-moderation mode |
 | Notifications | Recipient-only follow, like, comment, moderation outcome/reason, and system notices |
 | Report | Private reason/details form bound to a visible user, entry, or comment |
 | Admin | Branded operations dashboard, one-time invitations, dedicated content queues, configuration, and report workflows |
@@ -57,7 +57,7 @@ go-postery commit `1bcebf66c70bec6d12f0c2be812984cd69b5de57` (MIT, Copyright 202
 - Entry images accept JPG, PNG and WebP input, provide accessible ordered previews, and are served only after server decoding and re-encoding. Empty alternative text is preserved for decorative images rather than replaced with noisy fallback text.
 - Entry videos accept one bounded MP4/WebM input, show a local preview before submission, and use native controls with a generated poster after server validation and remux.
 - X/YouTube source shares remain first-party attributed cards. YouTube uses the privacy-enhanced official player only for a verified public source; X never injects provider HTML or scripts.
-- Avatar upload remains closed until replacement, retention and moderation behaviour are separately defined.
+- Avatar input reuses the hardened image decoder and becomes a metadata-free square WebP revision. Replacement/removal changes only the database pointer; older revisions remain outside public reach until the backup-safe orphan cleanup window.
 
 ## Independent implementation boundary
 

@@ -9,7 +9,7 @@
         <p>查看审核状态、管理自己的内容，不必在公开页面里寻找。</p>
       </div>
       <div class="member-console-actions">
-        <a class="button-primary" href="{% url 'web:entry-create' %}">写新内容</a>
+        <a class="button-primary" href="{% url 'web:home' %}#home-composer">写新内容</a>
         <a class="button-secondary" href="{% url 'web:member-settings' %}">资料与密码</a>
         <a class="button-secondary" href="{% url 'web:member-profile' request.user.public_id %}">查看公开主页</a>
       </div>
@@ -63,7 +63,7 @@
             </nav>
           {% endif %}
         {% else %}
-          <div class="empty-state empty-state-compact"><p>还没有内容。第一条可以很短，只要把想法写清楚。</p><a href="{% url 'web:entry-create' %}">开始写</a></div>
+          <div class="empty-state empty-state-compact"><p>还没有内容。第一条可以很短，只要把想法写清楚。</p><a href="{% url 'web:home' %}#home-composer">开始写</a></div>
         {% endif %}
       </section>
 

@@ -1,8 +1,6 @@
-{% load static %}
 <div class="sidebar-inner">
   <a class="sidebar-brand" href="{% url 'web:home' %}" aria-label="{{ site_config.site_name }} 首页">
-    <img class="sidebar-brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="42" height="42">
-    <span class="sr-only">{{ site_config.site_name }}</span>
+    {% include 'web/_brand_lockup.html' with brand_mark_class='sidebar-brand-mark' brand_copy_class='sidebar-brand-copy' %}
   </a>
 
   {% if is_mobile_drawer %}

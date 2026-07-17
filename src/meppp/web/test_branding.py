@@ -135,6 +135,23 @@ class BrandPageTests(TestCase):
             count=2,
         )
 
+        home_response = self.client.get(reverse("web:home"))
+        self.assertContains(
+            home_response,
+            '<span class="brand-lockup-copy sidebar-brand-copy">',
+            count=2,
+        )
+        self.assertContains(
+            home_response,
+            '<strong class="brand-name">冒泡</strong>',
+            count=3,
+        )
+        self.assertContains(
+            home_response,
+            '<span class="brand-product" aria-hidden="true">meppp</span>',
+            count=3,
+        )
+
     def test_policy_copy_tracks_site_configuration_instead_of_old_brand_text(self):
         for route_name in ("web:community-rules", "web:privacy-notice"):
             with self.subTest(route_name=route_name):

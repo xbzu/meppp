@@ -331,12 +331,15 @@ strong {
 }
 
 .sidebar-brand {
-  display: inline-grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  min-width: 52px;
+  min-height: 52px;
   margin: 0 0 14px 16px;
-  border-radius: 50%;
+  padding: 8px 12px 8px 8px;
+  border-radius: 14px;
 }
 
 .sidebar-brand:hover {
@@ -344,8 +347,13 @@ strong {
 }
 
 .sidebar-brand-mark {
-  width: 42px;
-  height: 42px;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+}
+
+.sidebar-brand-copy {
+  padding-right: 4px;
 }
 
 .sidebar-nav {
@@ -2156,7 +2164,15 @@ textarea.field-control {
   }
 
   .sidebar-brand {
+    gap: 0;
+    width: 52px;
+    padding: 8px;
     margin-left: 6px;
+    border-radius: 50%;
+  }
+
+  .sidebar-brand-copy {
+    display: none;
   }
 
   .sidebar-nav > a {
@@ -2272,7 +2288,15 @@ textarea.field-control {
   }
 
   .mobile-drawer .sidebar-brand {
+    gap: 10px;
+    width: fit-content;
+    padding: 8px 12px 8px 8px;
     margin-left: 10px;
+    border-radius: 14px;
+  }
+
+  .mobile-drawer .sidebar-brand-copy {
+    display: grid;
   }
 
   .mobile-drawer .sidebar-nav > a {

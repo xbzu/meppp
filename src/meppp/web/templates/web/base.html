@@ -5,9 +5,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0284c7">
-    <meta name="description" content="{{ site_config.tagline|default:'一个轻松分享、友好连接的小型社区。' }}">
+    <meta name="description" content="{{ site_config.tagline|default:'来冒个泡 · 分享新鲜事，遇见同路人' }}">
+    <meta property="og:site_name" content="冒泡 meppp">
+    <meta property="og:title" content="{{ site_config.site_name }}">
+    <meta property="og:description" content="{{ site_config.tagline|default:'来冒个泡 · 分享新鲜事，遇见同路人' }}">
+    <meta property="og:image" content="https://meppp.com{% static 'web/img/og-image.png' %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
     <title>{% block title %}{{ site_config.site_name }}{% endblock %}</title>
     <link rel="icon" href="{% static 'web/img/mark.svg' %}" type="image/svg+xml">
+    <link rel="icon" href="{% static 'web/img/favicon-32.png' %}" type="image/png" sizes="32x32">
+    <link rel="icon" href="{% static 'web/img/favicon-16.png' %}" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" href="{% static 'web/img/apple-touch-icon.png' %}" sizes="180x180">
     <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
     <script src="{% static 'web/js/app.js' %}" defer></script>
   </head>
@@ -17,8 +27,7 @@
       <header class="inner-header">
         <div class="inner-header-content">
           <a class="brand" href="{% url 'web:home' %}" aria-label="{{ site_config.site_name }} 首页">
-            <img class="brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="34" height="34">
-            <strong>{{ site_config.site_name }}</strong>
+            {% include 'web/_brand_lockup.html' %}
           </a>
           <nav class="inner-nav" aria-label="主要导航">
             <a href="{% url 'web:home' %}">广场</a>

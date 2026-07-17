@@ -1,7 +1,8 @@
 {% extends 'admin/base.html' %}
 {% load static %}
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_config.site_name }} meppp{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'web/css/admin.css' %}">{% endblock %}
-{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}"><span class="admin-mark" aria-hidden="true">M</span><span>MEPPP 管理后台</span></a></div>{% endblock %}
+{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}"><img class="admin-mark" src="{% static 'web/img/mark-dark.svg' %}" alt="" width="32" height="32"><span class="admin-brand-copy"><strong>{{ site_config.site_name }}</strong><small>meppp 管理后台</small></span></a></div>{% endblock %}
 {% block nav-global %}
   {% if perms.configuration.view_siteconfiguration or perms.configuration.change_siteconfiguration or perms.publishing.view_entry or perms.publishing.change_entry or perms.publishing.view_comment or perms.publishing.change_comment or perms.moderation.view_report or perms.moderation.change_report %}
     <a class="public-site-link" href="{% url 'operations:dashboard' %}">运营总览</a>

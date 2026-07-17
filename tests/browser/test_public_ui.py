@@ -103,8 +103,8 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
     def setUp(self):
         SiteConfiguration.objects.create(
             pk=1,
-            site_name="MEPPP",
-            tagline="把值得讨论的事情，写清楚。",
+            site_name="冒泡",
+            tagline="来冒个泡 · 分享新鲜事，遇见同路人",
             registration_mode=RegistrationMode.OPEN,
         )
         self.author = User.objects.create_user(
@@ -191,10 +191,11 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
     def test_desktop_public_feed_search_and_profile(self):
         self.open("/")
 
-        expect(self.page).to_have_title(re.compile("MEPPP"))
+        expect(self.page).to_have_title(re.compile("冒泡"))
         expect(self.page.get_by_role("heading", name="广场", exact=True)).to_be_visible()
         expect(self.page.locator(".paopao-shell")).to_be_visible()
         expect(self.page.locator(".stream-panel")).to_be_visible()
+        expect(self.page.locator(".sidebar-brand-mark").first).to_be_visible()
         expect(self.page.get_by_text("小社区不需要追赶每一种功能")).to_be_visible()
         expect(self.page.get_by_role("link", name="免费注册")).to_be_visible()
         expect(self.page.get_by_text("免费注册后可发文字", exact=False)).to_be_visible()
@@ -208,6 +209,41 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.wait_for_load_state("networkidle")
         expect(self.page.get_by_role("heading", name="林木")).to_be_visible()
         expect(self.page.get_by_text("lin@example.test")).to_have_count(0)
+        self.assert_browser_clean()
+
+    def test_brand_lockup_social_metadata_and_mobile_fit(self):
+        self.page.set_viewport_size({"width": 320, "height": 720})
+        self.open("/login/")
+
+        auth_brand = self.page.locator(".auth-brand")
+        expect(auth_brand.locator(".brand-name")).to_have_text("冒泡")
+        expect(auth_brand.locator(".brand-product")).to_have_text("meppp")
+        brand_mark = auth_brand.locator(".brand-mark")
+        expect(brand_mark).to_be_visible()
+        self.assertEqual(
+            brand_mark.evaluate("element => getComputedStyle(element).borderRadius"),
+            "0px",
+        )
+        image_state = brand_mark.evaluate(
+            "image => ({complete: image.complete, width: image.naturalWidth, "
+            "height: image.naturalHeight})"
+        )
+        self.assertTrue(image_state["complete"])
+        self.assertGreater(image_state["width"], 0)
+        self.assertEqual(image_state["width"], image_state["height"])
+        expect(self.page.locator('meta[property="og:site_name"]')).to_have_attribute(
+            "content", "冒泡 meppp"
+        )
+        expect(self.page.locator('meta[property="og:image"]')).to_have_attribute(
+            "content", "https://meppp.com/static/web/img/og-image.png"
+        )
+        expect(self.page.locator('meta[name="twitter:card"]')).to_have_attribute(
+            "content", "summary_large_image"
+        )
+        expect(self.page.locator('link[rel="icon"][sizes="32x32"]')).to_have_attribute(
+            "href", "/static/web/img/favicon-32.png"
+        )
+        self.page.screenshot(path=RESULTS_DIR / "brand-login-mobile.png", full_page=True)
         self.assert_browser_clean()
 
     def test_closed_registration_stays_discoverable_and_explains_status(self):
@@ -444,8 +480,12 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page).to_have_url(
             re.compile(r"/admin/configuration/siteconfiguration/1/change/")
         )
-        expect(self.page.get_by_text("MEPPP 管理后台", exact=True)).to_be_visible()
-        expect(self.page.locator("#id_site_name")).to_have_value("MEPPP")
+        expect(self.page.locator("#site-name")).to_contain_text("冒泡")
+        expect(self.page.locator("#site-name")).to_contain_text("meppp 管理后台")
+        expect(self.page.locator(".admin-mark")).to_have_attribute(
+            "src", re.compile(r"mark-dark\.svg$")
+        )
+        expect(self.page.locator("#id_site_name")).to_have_value("冒泡")
         expect(self.page.locator("#id_registration_mode")).to_be_visible()
         expect(self.page.locator("#id_moderation_mode")).to_be_visible()
         expect(self.page.locator("#id_comments_enabled")).to_be_visible()

@@ -6,7 +6,7 @@
   <div class="auth-layout paopao-auth-layout">
     <section class="auth-card" aria-labelledby="login-title">
       <a class="auth-brand" href="{% url 'web:home' %}" aria-label="返回 {{ site_config.site_name }} 广场">
-        <img class="brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="36" height="36"><strong>{{ site_config.site_name }}</strong>
+        {% include 'web/_brand_lockup.html' %}
       </a>
       <nav class="auth-tabs" aria-label="账号入口">
         <a href="{% url 'web:login' %}" aria-current="page">登录</a>

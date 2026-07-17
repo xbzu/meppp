@@ -4,7 +4,9 @@ import logging
 import os
 import re
 import secrets
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
@@ -29,7 +31,9 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
+from PIL import Image
 
+from meppp.accounts.models import Profile
 from meppp.accounts.normalization import username_identity
 from meppp.accounts.services import (
     issue_recovery_code,
@@ -496,6 +500,64 @@ def entry_create(request):
             },
         )
     return render(request, "web/entry_form.html", {"form": form})
+
+
+@never_cache
+@require_http_methods(["GET", "HEAD"])
+def avatar_file(request, public_id):
+    profile = get_object_or_404(
+        Profile.objects.select_related("user"),
+        user__public_id=public_id,
+        user__is_active=True,
+        avatar__endswith=".webp",
+        avatar_version__isnull=False,
+        avatar_byte_size__isnull=False,
+        avatar_width__isnull=False,
+        avatar_height__isnull=False,
+    )
+    expected_name = (
+        f"avatars/{profile.public_id}/{profile.avatar_version}.webp"
+    )
+    if profile.avatar.name != expected_name:
+        raise Http404
+
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    try:
+        relative_path = Path(*profile.avatar.name.split("/"))
+        candidate = media_root / relative_path
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(media_root)
+        current = media_root
+        for part in relative_path.parts:
+            current /= part
+            if current.is_symlink():
+                raise ValueError("symlinked avatar path")
+        if not resolved.is_file() or resolved.stat().st_size != profile.avatar_byte_size:
+            raise ValueError("avatar file metadata drift")
+        with Image.open(resolved, formats=("WEBP",)) as image:
+            image.load()
+            if (
+                image.format != "WEBP"
+                or image.size != (profile.avatar_width, profile.avatar_height)
+                or getattr(image, "n_frames", 1) != 1
+                or image.getexif()
+            ):
+                raise ValueError("avatar image metadata drift")
+        profile.avatar.open("rb")
+    except (FileNotFoundError, OSError, SyntaxError, ValueError) as error:
+        raise Http404 from error
+
+    response = FileResponse(
+        profile.avatar.file,
+        content_type="image/webp",
+        as_attachment=False,
+        filename=f"{public_id}.webp",
+    )
+    response.headers["Content-Length"] = str(profile.avatar_byte_size)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @never_cache

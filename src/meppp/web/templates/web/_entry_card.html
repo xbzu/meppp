@@ -1,5 +1,5 @@
 <article class="entry-card{% if is_detail %} entry-card-detail{% endif %}" aria-labelledby="entry-author-{{ entry.public_id }} entry-time-{{ entry.public_id }}">
-  <a class="avatar" href="{% url 'web:member-profile' entry.author.public_id %}" aria-hidden="true" tabindex="-1">{{ entry.author.profile.display_name|default:entry.author.username|first|upper }}</a>
+  <a class="avatar" href="{% url 'web:member-profile' entry.author.public_id %}" aria-hidden="true" tabindex="-1">{% include 'web/_avatar_content.html' with member=entry.author only %}</a>
   <div class="entry-content">
     <header class="identity-line">
       <div class="identity-copy">

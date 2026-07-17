@@ -23,11 +23,18 @@ def _table_exists(database: sqlite3.Connection, table_name: str) -> bool:
     )
 
 
+def _column_names(database: sqlite3.Connection, table_name: str) -> set[str]:
+    return {
+        row[1]
+        for row in database.execute(f'PRAGMA table_info("{table_name}")').fetchall()
+    }
+
+
 def _canonical_uuid(value) -> str:
     try:
         return str(UUID(str(value)))
     except (AttributeError, TypeError, ValueError) as error:
-        raise CommandError("video metadata is not canonical") from error
+        raise CommandError("media metadata is not canonical") from error
 
 
 def _resolve_media_file(
@@ -87,6 +94,31 @@ class Command(BaseCommand):
                         "JOIN publishing_entry AS entry ON entry.id = video.entry_id "
                         "ORDER BY video.id"
                     ).fetchall()
+                avatar_rows = []
+                if _table_exists(database, "accounts_profile"):
+                    profile_columns = _column_names(database, "accounts_profile")
+                    avatar_columns = {
+                        "public_id",
+                        "avatar",
+                        "avatar_version",
+                        "avatar_byte_size",
+                        "avatar_width",
+                        "avatar_height",
+                    }
+                    if avatar_columns.issubset(profile_columns):
+                        avatar_rows = database.execute(
+                            "SELECT public_id, avatar, avatar_version, avatar_byte_size, "
+                            "avatar_width, avatar_height FROM accounts_profile "
+                            "WHERE avatar != '' ORDER BY id"
+                        ).fetchall()
+                    elif "avatar" in profile_columns:
+                        legacy_avatar = database.execute(
+                            "SELECT 1 FROM accounts_profile WHERE avatar != '' LIMIT 1"
+                        ).fetchone()
+                        if legacy_avatar is not None:
+                            raise CommandError(
+                                "legacy avatar exists without canonical metadata"
+                            )
         except sqlite3.Error as error:
             raise CommandError("media records could not be read") from error
 
@@ -122,6 +154,53 @@ class Command(BaseCommand):
                 raise CommandError("attachment file cannot be decoded") from error
             if not valid:
                 raise CommandError("attachment file does not match database metadata")
+
+        for (
+            raw_profile_public_id,
+            file_name,
+            raw_avatar_version,
+            byte_size,
+            width,
+            height,
+        ) in avatar_rows:
+            profile_public_id = _canonical_uuid(raw_profile_public_id)
+            avatar_version = _canonical_uuid(raw_avatar_version)
+            if not isinstance(file_name, str):
+                raise CommandError("avatar metadata is not canonical")
+            relative_path = PurePosixPath(file_name)
+            if (
+                relative_path.is_absolute()
+                or ".." in relative_path.parts
+                or relative_path.parts[:-1] != ("avatars", profile_public_id)
+                or relative_path.name != f"{avatar_version}.webp"
+                or not isinstance(byte_size, int)
+                or byte_size <= 0
+                or not isinstance(width, int)
+                or width <= 0
+                or not isinstance(height, int)
+                or height <= 0
+            ):
+                raise CommandError("avatar metadata is not canonical")
+            resolved = _resolve_media_file(
+                media_root,
+                relative_path,
+                missing_message="avatar file is missing or outside media root",
+            )
+            if resolved.stat().st_size != byte_size:
+                raise CommandError("avatar file size or path is invalid")
+            try:
+                with Image.open(resolved, formats=("WEBP",)) as image:
+                    image.load()
+                    valid = (
+                        image.format == "WEBP"
+                        and image.size == (width, height)
+                        and getattr(image, "n_frames", 1) == 1
+                        and not image.getexif()
+                    )
+            except (OSError, SyntaxError, ValueError) as error:
+                raise CommandError("avatar file cannot be decoded") from error
+            if not valid:
+                raise CommandError("avatar file does not match database metadata")
 
         for (
             raw_video_public_id,
@@ -192,6 +271,6 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"media_verification=passed attachments={len(attachment_rows)} "
-                f"videos={len(video_rows)}"
+                f"avatars={len(avatar_rows)} videos={len(video_rows)}"
             )
         )

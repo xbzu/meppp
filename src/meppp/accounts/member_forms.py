@@ -15,6 +15,23 @@ class StyledFormMixin:
 
 
 class ProfileSettingsForm(StyledFormMixin, forms.ModelForm):
+    avatar_upload = forms.FileField(
+        label="上传新头像",
+        required=False,
+        help_text="支持 JPG、PNG、WebP；最大 5 MB。保存时会安全处理为方形 WebP。",
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": "image/jpeg,image/png,image/webp",
+                "data-avatar-input": "",
+            }
+        ),
+    )
+    remove_avatar = forms.BooleanField(
+        label="删除现有头像",
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class": "check-input"}),
+    )
+
     class Meta:
         model = Profile
         fields = ("display_name", "bio")
@@ -28,8 +45,14 @@ class ProfileSettingsForm(StyledFormMixin, forms.ModelForm):
             "bio": forms.Textarea(attrs={"rows": 6}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, configuration=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.configuration = configuration
+        if configuration is not None and not configuration.avatar_uploads_enabled:
+            self.fields.pop("avatar_upload")
+        if not self.instance.avatar:
+            self.fields.pop("remove_avatar")
+        self.order_fields(("avatar_upload", "remove_avatar", "display_name", "bio"))
         self.apply_field_styles()
 
     def clean_display_name(self) -> str:
@@ -37,6 +60,12 @@ class ProfileSettingsForm(StyledFormMixin, forms.ModelForm):
 
     def clean_bio(self) -> str:
         return self.cleaned_data["bio"].strip()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("avatar_upload") and cleaned_data.get("remove_avatar"):
+            raise forms.ValidationError("上传新头像和删除头像不能同时选择。")
+        return cleaned_data
 
 
 class StyledPasswordChangeForm(StyledFormMixin, PasswordChangeForm):

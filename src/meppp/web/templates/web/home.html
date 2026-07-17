@@ -28,7 +28,7 @@
 
       {% if request.user.is_authenticated %}
         <section class="quick-composer" aria-label="快速发布入口">
-          <span class="avatar avatar-current" aria-hidden="true">{{ request.user.profile.display_name|default:request.user.username|first|upper }}</span>
+          <span class="avatar avatar-current" aria-hidden="true">{% include 'web/_avatar_content.html' with member=request.user only %}</span>
           <div class="quick-composer-main">
             <a class="composer-prompt" href="{% url 'web:entry-create' %}">说说你的新鲜事……</a>
             <div class="composer-actions">

@@ -6,8 +6,15 @@
       <a class="back-link" href="{% url 'web:member-dashboard' %}"><span aria-hidden="true">←</span> 返回我的社区</a>
       <p class="eyebrow">PUBLIC PROFILE</p>
       <h1 id="settings-title">公开资料</h1>
-      <p class="form-lead">这里只管理别人能看到的昵称和简介；用户名、权限与安全记录不会公开。</p>
-      <form method="post" class="stacked-form" novalidate>
+      <p class="form-lead">这里管理别人能看到的头像、昵称和简介；用户名、权限与安全记录不会公开。</p>
+      <div class="profile-avatar-preview" aria-label="当前头像">
+        <span class="profile-avatar" aria-hidden="true">{% include 'web/_avatar_content.html' with member=request.user only %}</span>
+        <span>
+          <strong>当前头像</strong>
+          <small>{% if request.user.profile.avatar %}上传新图片即可替换；旧版本会按备份保留策略延迟清理。{% elif site_config.avatar_uploads_enabled %}还没有设置头像，上传后会在社区各处显示。{% else %}管理员当前关闭了新头像上传。{% endif %}</small>
+        </span>
+      </div>
+      <form method="post" enctype="multipart/form-data" class="stacked-form" novalidate>
         {% csrf_token %}
         {% include 'web/_form_fields.html' with form=form only %}
         <div class="form-actions">

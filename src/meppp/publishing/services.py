@@ -12,6 +12,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from meppp.accounts.models import Profile
 from meppp.audit.services import record_event
 from meppp.configuration.models import (
     MAX_IMAGE_UPLOAD_BYTES,
@@ -83,12 +84,15 @@ def cleanup_stored_files(stored_files: list[tuple]) -> None:
 def _media_bytes(*, author=None, created_on=None) -> int:
     attachment_filters = {}
     video_filters = {}
+    avatar_filters = {"avatar_byte_size__isnull": False}
     if author is not None:
         attachment_filters["entry__author"] = author
         video_filters["entry__author"] = author
+        avatar_filters["user"] = author
     if created_on is not None:
         attachment_filters["entry__created_at__date"] = created_on
         video_filters["entry__created_at__date"] = created_on
+        avatar_filters["updated_at__date"] = created_on
     image_bytes = (
         Attachment.objects.filter(**attachment_filters).aggregate(total=Sum("byte_size"))["total"]
         or 0
@@ -97,16 +101,19 @@ def _media_bytes(*, author=None, created_on=None) -> int:
         video=Sum("byte_size"),
         posters=Sum("poster_byte_size"),
     )
-    return image_bytes + (video_totals["video"] or 0) + (video_totals["posters"] or 0)
+    avatar_bytes = (
+        Profile.objects.filter(**avatar_filters).aggregate(total=Sum("avatar_byte_size"))["total"]
+        or 0
+    )
+    return (
+        image_bytes
+        + (video_totals["video"] or 0)
+        + (video_totals["posters"] or 0)
+        + avatar_bytes
+    )
 
 
-def _enforce_publish_capacity(*, author, state: str, new_media_bytes: int) -> None:
-    if (
-        state == ContentState.PENDING
-        and Entry.objects.filter(author=author, state=ContentState.PENDING).count()
-        >= settings.MEMBER_PENDING_ENTRY_LIMIT
-    ):
-        raise ValidationError("待审核内容已达到上限，请等待处理后再发布")
+def _enforce_member_media_capacity(*, author, new_media_bytes: int) -> None:
     if new_media_bytes <= 0:
         return
 
@@ -124,6 +131,23 @@ def _enforce_publish_capacity(*, author, state: str, new_media_bytes: int) -> No
         raise ValidationError("暂时无法确认媒体存储空间") from error
     if free_bytes - new_media_bytes < settings.MEDIA_MIN_FREE_BYTES:
         raise ValidationError("站点媒体存储空间不足，请稍后再试")
+
+
+def _enforce_publish_capacity(*, author, state: str, new_media_bytes: int) -> None:
+    if (
+        state == ContentState.PENDING
+        and Entry.objects.filter(author=author, state=ContentState.PENDING).count()
+        >= settings.MEMBER_PENDING_ENTRY_LIMIT
+    ):
+        raise ValidationError("待审核内容已达到上限，请等待处理后再发布")
+    _enforce_member_media_capacity(author=author, new_media_bytes=new_media_bytes)
+
+
+def preflight_member_media_capacity(*, author, expected_media_bytes: int) -> None:
+    _enforce_member_media_capacity(
+        author=author,
+        new_media_bytes=max(expected_media_bytes, 0),
+    )
 
 
 def preflight_publish_capacity(*, author, moderation_mode: str, expected_media_bytes: int) -> None:

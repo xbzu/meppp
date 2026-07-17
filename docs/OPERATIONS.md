@@ -74,8 +74,10 @@ For a small public opening, complete the same private smoke test, switch moderat
 The public-opening defaults allow at most five pending entries per member, 100 MiB of
 member media per day, five video-processing attempts per hour, and 20 GiB of total
 referenced site media while preserving at least 256 MiB of free storage. The application
-checks capacity before decoding video and repeats the authoritative check inside the write
-transaction. Tune only the positive `MEPPP_MEMBER_PENDING_ENTRY_LIMIT`,
+checks capacity before decoding video or storing an avatar and repeats the authoritative
+check inside the write transaction. Avatar processing is limited to five attempts per hour
+per member/IP, and the `avatar_uploads_enabled` admin switch blocks new uploads while
+leaving removal available. Tune only the positive `MEPPP_MEMBER_PENDING_ENTRY_LIMIT`,
 `MEPPP_MEMBER_DAILY_MEDIA_BYTES`, `MEPPP_MEDIA_MAX_TOTAL_BYTES`, and
 `MEPPP_MEDIA_MIN_FREE_BYTES` values; keep a documented storage and backup budget.
 
@@ -162,7 +164,7 @@ Old unreferenced crash-window files are reported, not deleted, by default. Revie
 
 ```bash
 docker compose exec -T app python manage.py reconcile_media
-docker compose exec -T app python manage.py reconcile_media --delete --minimum-age-hours 24
+docker compose exec -T app python manage.py reconcile_media --delete --minimum-age-hours 48
 ```
 
 SQLite must stay on a local filesystem, never NFS, a synchronized drive, or an object-store mount. Multiple replicas, sustained write contention, or queue-heavy workloads trigger a planned PostgreSQL migration.

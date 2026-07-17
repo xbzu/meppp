@@ -666,6 +666,23 @@ strong {
   font-size: 13px;
 }
 
+.avatar-image,
+.avatar-initial {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.avatar-image {
+  object-fit: cover;
+}
+
+.avatar-initial {
+  display: grid;
+  place-items: center;
+}
+
 .entry-content {
   min-width: 0;
 }
@@ -1789,6 +1806,26 @@ textarea.field-control {
   width: 72px;
   height: 72px;
   font-size: 27px;
+}
+
+.profile-avatar-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.profile-avatar-preview > span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.profile-avatar-preview small {
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .profile-copy h1 {

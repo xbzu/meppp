@@ -66,7 +66,14 @@ def _verify_source(content: bytes) -> None:
             image.verify()
 
 
-def _encode_webp(content: bytes, *, max_bytes: int) -> tuple[bytes, int, int]:
+def _encode_webp(
+    content: bytes,
+    *,
+    max_bytes: int,
+    square_size: int | None = None,
+) -> tuple[bytes, int, int]:
+    if square_size is not None and not 1 <= square_size <= MAX_OUTPUT_EDGE:
+        raise ValueError("square output size is outside the safe image bounds")
     with warnings.catch_warnings():
         warnings.simplefilter("error", Image.DecompressionBombWarning)
         with Image.open(BytesIO(content), formats=ALLOWED_INPUT_FORMATS) as source:
@@ -77,10 +84,18 @@ def _encode_webp(content: bytes, *, max_bytes: int) -> tuple[bytes, int, int]:
             _validate_dimensions(oriented)
             has_alpha = "A" in oriented.getbands() or "transparency" in oriented.info
             normalized = oriented.convert("RGBA" if has_alpha else "RGB")
-            normalized.thumbnail(
-                (MAX_OUTPUT_EDGE, MAX_OUTPUT_EDGE),
-                resample=Image.Resampling.LANCZOS,
-            )
+            if square_size is None:
+                normalized.thumbnail(
+                    (MAX_OUTPUT_EDGE, MAX_OUTPUT_EDGE),
+                    resample=Image.Resampling.LANCZOS,
+                )
+            else:
+                normalized = ImageOps.fit(
+                    normalized,
+                    (square_size, square_size),
+                    method=Image.Resampling.LANCZOS,
+                    centering=(0.5, 0.5),
+                )
             width, height = normalized.size
 
             for quality in OUTPUT_QUALITY_STEPS:
@@ -106,11 +121,23 @@ def _encode_webp(content: bytes, *, max_bytes: int) -> tuple[bytes, int, int]:
     return encoded, width, height
 
 
-def process_image_upload(*, upload: BinaryIO, max_bytes: int, alt_text: str = "") -> ProcessedImage:
+def process_image_upload(
+    *,
+    upload: BinaryIO,
+    max_bytes: int,
+    alt_text: str = "",
+    square_size: int | None = None,
+    max_output_bytes: int | None = None,
+) -> ProcessedImage:
     content = _read_limited(upload, max_bytes=max_bytes)
+    output_limit = max_bytes if max_output_bytes is None else max_output_bytes
     try:
         _verify_source(content)
-        encoded, width, height = _encode_webp(content, max_bytes=max_bytes)
+        encoded, width, height = _encode_webp(
+            content,
+            max_bytes=output_limit,
+            square_size=square_size,
+        )
     except ValidationError:
         raise
     except (

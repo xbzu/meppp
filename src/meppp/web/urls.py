@@ -39,6 +39,11 @@ urlpatterns = [
     ),
     path("write/", views.entry_create, name="entry-create"),
     path(
+        "media/avatar/<uuid:public_id>/",
+        views.avatar_file,
+        name="avatar-file",
+    ),
+    path(
         "media/attachment/<uuid:public_id>/",
         views.attachment_file,
         name="attachment-file",

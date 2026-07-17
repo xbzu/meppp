@@ -1120,7 +1120,8 @@ textarea.field-control {
   gap: 8px;
 }
 
-.composer-shortcuts a {
+.composer-shortcuts a,
+.composer-shortcuts button {
   display: grid;
   place-items: center;
   gap: 4px;
@@ -1130,15 +1131,19 @@ textarea.field-control {
   background: var(--primary-faint);
   border: 1px solid #bae6fd;
   border-radius: 8px;
+  font-family: inherit;
   font-size: 12px;
+  cursor: pointer;
 }
 
-.composer-shortcuts a:hover {
+.composer-shortcuts a:hover,
+.composer-shortcuts button:hover {
   color: var(--primary-strong);
   background: var(--primary-soft);
 }
 
-.composer-shortcuts a > span {
+.composer-shortcuts a > span,
+.composer-shortcuts button > span {
   display: grid;
   place-items: center;
   min-width: 30px;
@@ -1160,10 +1165,98 @@ textarea.field-control {
   display: block;
 }
 
-.composer-shortcuts a[aria-current="true"] {
+.composer-shortcuts a[aria-current="true"],
+.composer-shortcuts button[aria-current="true"] {
   color: #fff;
   background: var(--primary);
   border-color: var(--primary);
+}
+
+.inline-composer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inline-composer-form #composer-body {
+  order: 1;
+}
+
+.inline-composer-form #composer-body > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.inline-composer-form textarea.field-control {
+  height: 58px;
+  min-height: 58px;
+  padding: 4px 0 10px;
+  border: 0;
+  font-size: 17px;
+}
+
+.inline-composer-form textarea.field-control:focus {
+  box-shadow: none;
+}
+
+.inline-composer-shortcuts {
+  order: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.inline-composer-shortcuts a,
+.inline-composer-shortcuts button {
+  display: inline-flex;
+  grid-template-columns: none;
+  gap: 5px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 9px;
+  color: var(--primary);
+  background: transparent;
+  border: 0;
+  border-radius: 19px;
+  font-size: 13px;
+}
+
+.inline-composer-shortcuts a > span,
+.inline-composer-shortcuts button > span {
+  min-width: 22px;
+  min-height: 22px;
+}
+
+.inline-composer-shortcuts a > strong,
+.inline-composer-shortcuts button > strong {
+  font-weight: 600;
+}
+
+.inline-composer-form > [data-composer-panel] {
+  order: 3;
+}
+
+.inline-composer-form > .composer-meta {
+  order: 4;
+  padding-top: 2px;
+}
+
+.inline-composer-actions {
+  order: 5;
+  justify-content: flex-end;
+}
+
+.inline-composer-actions .button-primary {
+  min-width: 78px;
 }
 
 .composer-mode-note {
@@ -2448,6 +2541,11 @@ textarea.field-control {
 
   .composer-form textarea.field-control {
     min-height: 120px;
+  }
+
+  .composer-form.inline-composer-form textarea.field-control {
+    height: 58px;
+    min-height: 58px;
   }
 
   .interaction-button,

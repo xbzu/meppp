@@ -10,7 +10,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView, LogoutView, redirect_to_login
 from django.core.cache import caches
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -348,7 +348,10 @@ def account_recovery(request):
     return render(request, "registration/account_recovery.html", {"form": form})
 
 
-def home(request):
+ENTRY_CREATE_PURPOSE = "entry:create"
+
+
+def _home_context(request) -> dict:
     entries = public_entries(viewer=request.user)
     mode = request.GET.get("feed", "latest")
     query = request.GET.get("q", "").strip()[:80]
@@ -374,18 +377,145 @@ def home(request):
     page = paginator.get_page(request.GET.get("page"))
     query_parameters = request.GET.copy()
     query_parameters.pop("page", None)
-    return render(
-        request,
-        "web/home.html",
-        {
-            "page": page,
-            "feed_mode": mode,
-            "query": query,
-            "topic_slug": topic_slug,
-            "topics": active_topics(),
-            "query_string": query_parameters.urlencode(),
-        },
-    )
+    return {
+        "page": page,
+        "feed_mode": mode,
+        "query": query,
+        "topic_slug": topic_slug,
+        "topics": active_topics(),
+        "query_string": query_parameters.urlencode(),
+    }
+
+
+def _entry_form_for_request(request, *, configuration):
+    if request.method != "POST":
+        form = EntryForm(
+            configuration=configuration,
+            initial={
+                "nonce": issue_nonce(request, purpose=ENTRY_CREATE_PURPOSE),
+                "source_url": request.GET.get("url", "")[:2_048],
+            },
+        )
+        return form, None, None
+
+    try:
+        enforce_rate_limit(
+            request,
+            scope="publish",
+            identity=str(request.user.public_id),
+        )
+    except RateLimitExceeded as error:
+        return None, None, _rate_limited(request, error)
+
+    form = EntryForm(request.POST, request.FILES, configuration=configuration)
+    if not form.is_valid():
+        return form, None, None
+
+    token = form.cleaned_data["nonce"]
+    if not nonce_is_issued(request, purpose=ENTRY_CREATE_PURPOSE, token=token):
+        form.add_error(None, "这个发布表单已经处理过，请刷新页面后再试。")
+        return form, None, None
+
+    validation_field = None
+    try:
+        image_uploads = form.cleaned_data.get("images", [])
+        uploaded_video = form.cleaned_data.get("video")
+        if uploaded_video is not None:
+            try:
+                enforce_rate_limit(
+                    request,
+                    scope="video_process",
+                    identity=str(request.user.public_id),
+                )
+            except RateLimitExceeded as error:
+                return form, None, _rate_limited(request, error)
+        expected_media_bytes = sum(upload.size for upload in image_uploads)
+        if uploaded_video is not None:
+            expected_media_bytes += uploaded_video.size + MAX_VIDEO_POSTER_BYTES
+        preflight_publish_capacity(
+            author=request.user,
+            moderation_mode=configuration.moderation_mode,
+            expected_media_bytes=expected_media_bytes,
+        )
+        validation_field = "images"
+        images = process_image_uploads(
+            uploads=image_uploads,
+            alt_texts=form.cleaned_data.get("image_alt_texts", []),
+            max_bytes=form.maximum_image_bytes,
+        )
+        validation_field = "video"
+        video = process_video_upload(upload=uploaded_video) if uploaded_video is not None else None
+        external_source = getattr(form, "external_source", None)
+        body = form.cleaned_data["body"]
+        if not body and external_source is not None:
+            body = (
+                "分享了一条 X 动态"
+                if external_source.provider == "x"
+                else "分享了一个 YouTube 视频"
+            )
+        validation_field = None
+        entry = publish_entry_once(
+            author=request.user,
+            body=body,
+            topics=form.cleaned_data["topics"],
+            purpose=ENTRY_CREATE_PURPOSE,
+            token=token,
+            images=images,
+            video=video,
+            source_url=form.cleaned_data.get("source_url", ""),
+        )
+    except DuplicateSubmission:
+        form.add_error(None, "这个发布表单已经处理过，请刷新页面后再试。")
+        return form, None, None
+    except ValidationError as error:
+        form.add_error(validation_field, error)
+        return form, None, None
+
+    if form.cleaned_data.get("source_url"):
+        try:
+            refresh_external_reference(
+                ExternalReference.objects.get(entry=entry),
+            )
+        except Exception:
+            logger.exception(
+                "external reference refresh failed for entry %s",
+                entry.public_id,
+            )
+    consume_nonce(request, purpose=ENTRY_CREATE_PURPOSE, token=token)
+    return form, entry, None
+
+
+@require_http_methods(["GET", "HEAD", "POST"])
+def home(request):
+    configuration = get_site_configuration()
+    composer_form = None
+    if request.method == "POST":
+        if not request.user.is_authenticated:
+            return redirect_to_login(
+                request.get_full_path(),
+                login_url=reverse("web:login"),
+            )
+        composer_form, entry, terminal_response = _entry_form_for_request(
+            request,
+            configuration=configuration,
+        )
+        if terminal_response is not None:
+            return terminal_response
+        if entry is not None:
+            if entry.state == ContentState.PENDING:
+                messages.success(request, "内容已提交审核，通过后会出现在公开信息流。")
+            else:
+                messages.success(request, "内容已经发布。")
+            return redirect("web:home")
+    elif request.user.is_authenticated:
+        composer_form, _, _ = _entry_form_for_request(
+            request,
+            configuration=configuration,
+        )
+
+    context = _home_context(request)
+    context["composer_form"] = composer_form
+    return render(request, "web/home.html", context)
 
 
 @require_http_methods(["GET", "HEAD"])
@@ -402,103 +532,18 @@ def privacy_notice(request):
 @require_http_methods(["GET", "POST"])
 def entry_create(request):
     configuration = get_site_configuration()
-    purpose = "entry:create"
-    if request.method == "POST":
-        try:
-            enforce_rate_limit(
-                request,
-                scope="publish",
-                identity=str(request.user.public_id),
-            )
-        except RateLimitExceeded as error:
-            return _rate_limited(request, error)
-        form = EntryForm(request.POST, request.FILES, configuration=configuration)
-        if form.is_valid():
-            token = form.cleaned_data["nonce"]
-            if not nonce_is_issued(request, purpose=purpose, token=token):
-                form.add_error(None, "这个发布表单已经处理过，请刷新页面后再试。")
-            else:
-                validation_field = None
-                try:
-                    image_uploads = form.cleaned_data.get("images", [])
-                    uploaded_video = form.cleaned_data.get("video")
-                    if uploaded_video is not None:
-                        try:
-                            enforce_rate_limit(
-                                request,
-                                scope="video_process",
-                                identity=str(request.user.public_id),
-                            )
-                        except RateLimitExceeded as error:
-                            return _rate_limited(request, error)
-                    expected_media_bytes = sum(upload.size for upload in image_uploads)
-                    if uploaded_video is not None:
-                        expected_media_bytes += uploaded_video.size + MAX_VIDEO_POSTER_BYTES
-                    preflight_publish_capacity(
-                        author=request.user,
-                        moderation_mode=configuration.moderation_mode,
-                        expected_media_bytes=expected_media_bytes,
-                    )
-                    validation_field = "images"
-                    images = process_image_uploads(
-                        uploads=image_uploads,
-                        alt_texts=form.cleaned_data.get("image_alt_texts", []),
-                        max_bytes=form.maximum_image_bytes,
-                    )
-                    validation_field = "video"
-                    video = (
-                        process_video_upload(upload=uploaded_video)
-                        if uploaded_video is not None
-                        else None
-                    )
-                    external_source = getattr(form, "external_source", None)
-                    body = form.cleaned_data["body"]
-                    if not body and external_source is not None:
-                        body = (
-                            "分享了一条 X 动态"
-                            if external_source.provider == "x"
-                            else "分享了一个 YouTube 视频"
-                        )
-                    validation_field = None
-                    entry = publish_entry_once(
-                        author=request.user,
-                        body=body,
-                        topics=form.cleaned_data["topics"],
-                        purpose=purpose,
-                        token=token,
-                        images=images,
-                        video=video,
-                        source_url=form.cleaned_data.get("source_url", ""),
-                    )
-                except DuplicateSubmission:
-                    form.add_error(None, "这个发布表单已经处理过，请刷新页面后再试。")
-                except ValidationError as error:
-                    form.add_error(validation_field, error)
-                else:
-                    if form.cleaned_data.get("source_url"):
-                        try:
-                            refresh_external_reference(
-                                ExternalReference.objects.get(entry=entry),
-                            )
-                        except Exception:
-                            logger.exception(
-                                "external reference refresh failed for entry %s",
-                                entry.public_id,
-                            )
-                    consume_nonce(request, purpose=purpose, token=token)
-                    if entry.state == ContentState.PENDING:
-                        messages.success(request, "内容已提交审核，通过后会出现在公开信息流。")
-                        return redirect("web:home")
-                    messages.success(request, "内容已经发布。")
-                    return redirect("web:entry-detail", public_id=entry.public_id)
-    else:
-        form = EntryForm(
-            configuration=configuration,
-            initial={
-                "nonce": issue_nonce(request, purpose=purpose),
-                "source_url": request.GET.get("url", "")[:2_048],
-            },
-        )
+    form, entry, terminal_response = _entry_form_for_request(
+        request,
+        configuration=configuration,
+    )
+    if terminal_response is not None:
+        return terminal_response
+    if entry is not None:
+        if entry.state == ContentState.PENDING:
+            messages.success(request, "内容已提交审核，通过后会出现在公开信息流。")
+            return redirect("web:home")
+        messages.success(request, "内容已经发布。")
+        return redirect("web:entry-detail", public_id=entry.public_id)
     return render(request, "web/entry_form.html", {"form": form})
 
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.core.cache import cache
 from django.utils import timezone
 from PIL import Image
 from playwright.sync_api import expect, sync_playwright
@@ -101,6 +102,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         super().tearDownClass()
 
     def setUp(self):
+        cache.clear()
         SiteConfiguration.objects.create(
             pk=1,
             site_name="冒泡",
@@ -356,18 +358,21 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
 
     def test_member_can_publish_comment_and_like_without_javascript_errors(self):
         self.login("lin")
-        self.page.get_by_role("link", name="写一条").click()
-        self.page.wait_for_load_state("networkidle")
+        self.page.locator(".community-sidebar .sidebar-create").click()
+        expect(self.page).to_have_url(re.compile(r"/#home-composer$"))
+        expect(self.page.get_by_label("正文")).to_be_focused()
         self.page.get_by_label("正文").fill("浏览器验证：这是一条由真实成员流程发布的内容。")
-        self.page.get_by_role("link", name="话题", exact=True).click()
+        self.page.get_by_role("button", name="选择话题").click()
         self.page.get_by_label("独立网络").check()
-        self.page.get_by_role("button", name="发布内容").click()
+        self.page.get_by_role("button", name="发布", exact=True).click()
         self.page.wait_for_load_state("networkidle")
 
-        expect(self.page).to_have_url(re.compile(r"/entry/[0-9a-f-]+/"))
+        expect(self.page).to_have_url(re.compile(r"/$"))
         expect(
             self.page.get_by_text("浏览器验证：这是一条由真实成员流程发布的内容。")
         ).to_be_visible()
+        published = Entry.objects.get(body="浏览器验证：这是一条由真实成员流程发布的内容。")
+        self.open(f"/entry/{published.public_id}/")
         self.page.get_by_role("button", name=re.compile(r"赞 0")).click()
         self.page.wait_for_load_state("networkidle")
         self.page.get_by_label("写下评论").fill("评论流程也已经通过浏览器。")
@@ -376,15 +381,71 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page.get_by_text("评论流程也已经通过浏览器。")).to_be_visible()
         self.assert_browser_clean()
 
+    def test_inline_composer_has_no_overflow_at_supported_widths(self):
+        self.login("lin")
+        for width in (320, 390, 959, 960, 1100, 1101, 1440):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({"width": width, "height": 900})
+                self.open("/")
+                expect(self.page.locator(".inline-composer-form")).to_be_visible()
+                expect(self.page.get_by_label("正文")).to_be_visible()
+                self.assertTrue(
+                    self.page.locator("html").evaluate(
+                        "element => element.scrollWidth <= element.clientWidth"
+                    )
+                )
+                if width <= 520:
+                    for shortcut in self.page.locator(
+                        ".inline-composer-shortcuts [data-composer-shortcut]"
+                    ).all():
+                        box = shortcut.bounding_box()
+                        self.assertIsNotNone(box)
+                        self.assertGreaterEqual(box["height"], 44)
+        self.assert_browser_clean()
+
+    def test_mobile_publish_navigation_closes_the_drawer_and_focuses_composer(self):
+        self.login("lin")
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.open("/")
+        mobile_menu = self.page.locator(".mobile-menu")
+        self.page.get_by_label("打开导航").click()
+        self.assertTrue(mobile_menu.evaluate("menu => menu.open"))
+
+        self.page.locator(".mobile-drawer .sidebar-create").click()
+
+        expect(self.page).to_have_url(re.compile(r"/#home-composer$"))
+        self.assertFalse(mobile_menu.evaluate("menu => menu.open"))
+        expect(self.page.get_by_label("正文")).to_be_focused()
+        self.assert_browser_clean()
+
+    def test_inline_text_publish_still_works_without_javascript(self):
+        context = self.browser.new_context(
+            viewport={"width": 390, "height": 844},
+            java_script_enabled=False,
+        )
+        page = context.new_page()
+        try:
+            page.goto(f"{self.live_server_url}/login/")
+            page.get_by_label("用户名").fill("lin")
+            page.get_by_label("密码").fill(PASSWORD)
+            page.get_by_role("button", name="登录", exact=True).click()
+            page.get_by_label("正文").fill("关闭 JavaScript 仍可在首页发布。")
+            page.get_by_role("button", name="发布", exact=True).click()
+
+            expect(page).to_have_url(re.compile(r"/$"))
+            expect(page.get_by_text("关闭 JavaScript 仍可在首页发布。")).to_be_visible()
+            self.assertTrue(Entry.objects.filter(body="关闭 JavaScript 仍可在首页发布。").exists())
+        finally:
+            context.close()
+
     def test_member_can_publish_four_safe_images_on_mobile(self):
         self.login("lin")
         self.page.set_viewport_size({"width": 390, "height": 844})
-        image_entry = self.page.get_by_role("link", name="发布图片")
+        image_entry = self.page.get_by_role("button", name="发布图片")
         expect(image_entry).to_be_visible()
         self.page.screenshot(path=RESULTS_DIR / "member-home-mobile.png", full_page=True)
         image_entry.click()
-        self.page.wait_for_load_state("networkidle")
-        expect(self.page).to_have_url(re.compile(r"/write/\?compose=image$"))
+        expect(self.page).to_have_url(re.compile(r"/$"))
         self.assertEqual(self.page.evaluate("window.scrollY"), 0)
         expect(self.page.get_by_role("navigation", name="选择发布方式")).to_be_visible()
         expect(self.page.locator("#composer-images")).to_be_visible()
@@ -421,20 +482,14 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         last_alt = self.page.locator("[data-image-alt]").last
         last_alt.scroll_into_view_if_needed()
         last_alt_box = last_alt.bounding_box()
-        action_box = self.page.locator(".composer-page .form-actions").bounding_box()
+        action_box = self.page.locator(".inline-composer-form .form-actions").bounding_box()
         self.assertIsNotNone(last_alt_box)
         self.assertIsNotNone(action_box)
         self.assertEqual(
-            self.page.locator(".composer-page .form-actions").evaluate(
+            self.page.locator(".inline-composer-form .form-actions").evaluate(
                 "element => getComputedStyle(element).position"
             ),
-            "sticky",
-        )
-        self.assertLess(action_box["y"], self.page.evaluate("window.innerHeight"))
-        self.assertLessEqual(
-            last_alt_box["y"] + last_alt_box["height"],
-            action_box["y"],
-            "移动发布栏不应遮挡最后一项图片说明",
+            "static",
         )
 
         self.page.evaluate("window.scrollTo(0, 0)")
@@ -445,10 +500,10 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
                 "element => element.scrollWidth <= element.clientWidth"
             )
         )
-        self.page.get_by_role("button", name="发布内容").click()
+        self.page.get_by_role("button", name="发布", exact=True).click()
         self.page.wait_for_load_state("networkidle")
 
-        expect(self.page).to_have_url(re.compile(r"/entry/[0-9a-f-]+/"))
+        expect(self.page).to_have_url(re.compile(r"/$"))
         expect(self.page.locator(".media-count-4")).to_be_visible()
         expect(self.page.locator("[data-entry-image]")).to_have_count(4)
         published_entry = Entry.objects.get(author=self.author, body="")
@@ -483,8 +538,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
 
     def test_single_portrait_image_is_not_cropped_on_desktop(self):
         self.login("lin")
-        self.page.get_by_role("link", name="写一条").click()
-        self.page.wait_for_load_state("networkidle")
+        self.open("/write/")
         self.page.get_by_label("正文").fill("极窄竖图也应完整展示。")
         self.page.get_by_role("link", name="图片", exact=True).click()
         self.page.get_by_label("选择图片").set_input_files(
@@ -505,6 +559,63 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
             "contain",
         )
         self.assertLessEqual(image.evaluate("element => element.clientHeight"), 660)
+        self.assert_browser_clean()
+
+    def test_member_can_upload_replace_and_remove_avatar_across_the_site(self):
+        self.login("lin")
+        self.open("/me/settings/")
+        self.page.get_by_label("上传新头像").set_input_files(
+            browser_image_payload(
+                name="first-avatar.jpg",
+                color="navy",
+                size=(900, 500),
+            )
+        )
+        self.page.get_by_role("button", name="保存公开资料").click()
+        self.page.wait_for_load_state("networkidle")
+        preview = self.page.locator(".profile-avatar-preview .avatar-image")
+        expect(preview).to_be_visible()
+        self.assertGreater(preview.evaluate("element => element.naturalWidth"), 0)
+        profile = Profile.objects.get(user=self.author)
+        first_revision = profile.avatar_version
+        first_path = Path(profile.avatar.path)
+        self.assertTrue(first_path.is_file())
+
+        self.open("/")
+        avatar_images = self.page.locator(".avatar-image")
+        self.assertGreaterEqual(avatar_images.count(), 3)
+        self.assertTrue(
+            all(
+                width > 0
+                for width in avatar_images.evaluate_all(
+                    "images => images.map(image => image.naturalWidth)"
+                )
+            )
+        )
+
+        self.open("/me/settings/")
+        self.page.get_by_label("上传新头像").set_input_files(
+            browser_image_payload(
+                name="replacement-avatar.png",
+                color="gold",
+                image_format="PNG",
+                size=(500, 900),
+            )
+        )
+        self.page.get_by_role("button", name="保存公开资料").click()
+        self.page.wait_for_load_state("networkidle")
+        profile.refresh_from_db()
+        self.assertNotEqual(profile.avatar_version, first_revision)
+        self.assertTrue(first_path.is_file(), "旧头像必须保留到备份清理窗口")
+
+        self.page.get_by_label("删除现有头像").check()
+        self.page.get_by_role("button", name="保存公开资料").click()
+        self.page.wait_for_load_state("networkidle")
+        profile.refresh_from_db()
+        self.assertFalse(profile.avatar)
+        self.open("/")
+        expect(self.page.locator(".avatar-image")).to_have_count(0)
+        expect(self.page.locator(".avatar-initial").first).to_be_visible()
         self.assert_browser_clean()
 
     def test_member_can_report_bound_entry(self):
@@ -547,6 +658,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(self.page.locator("#id_registration_mode")).to_be_visible()
         expect(self.page.locator("#id_moderation_mode")).to_be_visible()
         expect(self.page.locator("#id_comments_enabled")).to_be_visible()
+        expect(self.page.locator("#id_avatar_uploads_enabled")).to_be_visible()
         expect(self.page.locator("#id_video_uploads_enabled")).to_be_visible()
         expect(self.page.locator("#id_x_references_enabled")).to_be_visible()
         expect(self.page.locator("#id_youtube_references_enabled")).to_be_visible()
@@ -613,7 +725,7 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.wait_for_load_state("networkidle")
         expect(self.page.get_by_text("恢复码已确认保存", exact=False)).to_be_visible()
 
-        self.page.get_by_role("link", name="写一条").click()
+        self.open("/write/")
         self.page.get_by_label("正文").fill("邀请制审核闭环：这条内容先进入待审队列。")
         self.page.get_by_role("link", name="图片", exact=True).click()
         self.page.get_by_label("选择图片").set_input_files(
@@ -762,10 +874,9 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
     def test_member_can_share_an_attributed_x_reference_without_remote_media_download(self):
         self.login("lin")
         self.page.set_viewport_size({"width": 390, "height": 844})
-        self.page.get_by_role("link", name="分享 X 来源").click()
-        self.page.wait_for_load_state("networkidle")
+        self.page.get_by_role("button", name="分享 X 来源").click()
         source_input = self.page.get_by_label("分享 X / YouTube 来源")
-        expect(source_input).not_to_be_focused()
+        expect(source_input).to_be_focused()
         self.assertEqual(self.page.evaluate("window.scrollY"), 0)
         expect(self.page.locator("#composer-images")).to_be_hidden()
         expect(self.page.locator("#composer-video")).to_be_hidden()
@@ -780,10 +891,10 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
             "meppp.web.views.refresh_external_reference",
             side_effect=lambda reference: reference,
         ):
-            self.page.get_by_role("button", name="发布内容").click()
+            self.page.get_by_role("button", name="发布", exact=True).click()
             self.page.wait_for_load_state("networkidle")
 
-        expect(self.page).to_have_url(re.compile(r"/entry/[0-9a-f-]+/"))
+        expect(self.page).to_have_url(re.compile(r"/$"))
         expect(self.page.get_by_text("分享了一条 X 动态")).to_be_visible()
         source_link = self.page.get_by_role("link", name=re.compile("在 X 查看原文"))
         expect(source_link).to_have_attribute("href", "https://x.com/i/status/20")
@@ -803,11 +914,10 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
 
         self.login("lin")
         self.page.set_viewport_size({"width": 390, "height": 844})
-        video_entry = self.page.get_by_role("link", name="发布视频")
+        video_entry = self.page.get_by_role("button", name="发布视频")
         expect(video_entry).to_be_visible()
         video_entry.click()
-        self.page.wait_for_load_state("networkidle")
-        expect(self.page).to_have_url(re.compile(r"/write/\?compose=video$"))
+        expect(self.page).to_have_url(re.compile(r"/$"))
 
         video_input = self.page.get_by_label("选择视频")
         video_input.set_input_files(payload)
@@ -819,9 +929,9 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.page.evaluate("window.scrollTo(0, 0)")
         self.page.screenshot(path=RESULTS_DIR / "composer-video-mobile.png", full_page=True)
 
-        self.page.get_by_role("button", name="发布内容").click()
+        self.page.get_by_role("button", name="发布", exact=True).click()
         self.page.wait_for_load_state("networkidle", timeout=30_000)
-        expect(self.page).to_have_url(re.compile(r"/entry/[0-9a-f-]+/"))
+        expect(self.page).to_have_url(re.compile(r"/$"))
         published_video = self.page.locator(".entry-video video")
         expect(published_video).to_be_visible()
         self.page.wait_for_function(
@@ -850,14 +960,13 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         )
         self.login("lin")
         self.page.set_viewport_size({"width": 390, "height": 844})
-        self.page.get_by_role("link", name="分享 YouTube 来源").click()
-        self.page.wait_for_load_state("networkidle")
+        self.page.get_by_role("button", name="分享 YouTube 来源").click()
         source_input = self.page.get_by_label("分享 X / YouTube 来源")
         source_input.fill("https://youtu.be/dQw4w9WgXcQ")
         expect(self.page.get_by_text("已识别为 YouTube 视频", exact=False)).to_be_visible()
 
         with patch("meppp.web.views.refresh_external_reference", side_effect=mark_ready):
-            self.page.get_by_role("button", name="发布内容").click()
+            self.page.get_by_role("button", name="发布", exact=True).click()
             self.page.wait_for_load_state("networkidle")
 
         expect(self.page.get_by_text("浏览器验证 YouTube 来源")).to_be_visible()

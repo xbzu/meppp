@@ -45,7 +45,7 @@ Before first start:
 Start and inspect:
 
 ```bash
-RELEASE_TAG=v0.1.0-rc.13
+RELEASE_TAG=v0.1.0-rc.14
 test -z "$(docker image ls --quiet meppp:${RELEASE_TAG})"
 DOCKER_BUILDKIT=1 docker build --pull --tag "meppp:${RELEASE_TAG}" .
 docker image inspect "meppp:${RELEASE_TAG}" >/dev/null

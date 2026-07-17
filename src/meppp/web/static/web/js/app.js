@@ -448,8 +448,23 @@
   }
   publishingForm?.classList.add("is-enhanced");
   if (publishingForm && initialComposeMode) {
-    activateComposerShortcut(shortcutsByMode.get(initialComposeMode));
+    if (window.location.hash === "#home-composer") {
+      document
+        .querySelectorAll(".mobile-menu[open]")
+        .forEach((menu) => menu.removeAttribute("open"));
+    }
+    activateComposerShortcut(shortcutsByMode.get(initialComposeMode), {
+      focus: window.location.hash === "#home-composer",
+    });
   }
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash === "#home-composer") {
+      document
+        .querySelectorAll(".mobile-menu[open]")
+        .forEach((menu) => menu.removeAttribute("open"));
+      activateComposerShortcut(shortcutsByMode.get("text"), { focus: true });
+    }
+  });
   publishingForm?.addEventListener("submit", () => {
     if (sourceInput?.value && (imageInput?.files.length || videoInput?.files.length)) {
       const keepSource = window.confirm(

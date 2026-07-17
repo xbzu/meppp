@@ -61,8 +61,8 @@ jobs:
           uv run coverage run manage.py test meppp
           uv run coverage report
 
-      - name: Test standalone container health probe
-        run: uv run python -m unittest tests.test_container_healthcheck -v
+      - name: Test release metadata and standalone container health probe
+        run: uv run python -m unittest tests.test_release_metadata tests.test_container_healthcheck -v
 
       - name: Check production security settings
         env:

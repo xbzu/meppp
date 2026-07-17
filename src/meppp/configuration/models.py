@@ -51,6 +51,7 @@ class SiteConfiguration(TimeStampedModel):
         default=ModerationMode.POSTMODERATION,
     )
     comments_enabled = models.BooleanField(default=True)
+    avatar_uploads_enabled = models.BooleanField(default=True)
     video_uploads_enabled = models.BooleanField(default=True)
     x_references_enabled = models.BooleanField(default=True)
     youtube_references_enabled = models.BooleanField(default=True)
@@ -85,6 +86,7 @@ class SiteConfiguration(TimeStampedModel):
             "upload_max_bytes": self.upload_max_bytes,
             "moderation_mode": self.moderation_mode,
             "comments_enabled": self.comments_enabled,
+            "avatar_uploads_enabled": self.avatar_uploads_enabled,
             "video_uploads_enabled": self.video_uploads_enabled,
             "x_references_enabled": self.x_references_enabled,
             "youtube_references_enabled": self.youtube_references_enabled,

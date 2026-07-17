@@ -14,7 +14,7 @@ MEPPP is a lightweight community product. Its first complete milestone is a smal
 - Implemented: one self-uploaded MP4/WebM video per entry with a 20 MiB / five-minute hard cap, codec allowlists, metadata-stripping remux, generated WebP poster, state-aware Range delivery, cleanup and backup verification.
 - Implemented: attributed X and YouTube source cards built from strict local URL parsing and fixed official oEmbed endpoints. MEPPP does not download or re-host third-party media; YouTube playback uses the privacy-enhanced official embed only after metadata verification.
 - Implemented: display-once account recovery codes whose credential store contains only a password hash; registration, recovery and login have separate abuse limits.
-- Deliberately closed: member avatar uploads. They will reuse the proven image processor only after the profile replacement and retention lifecycle is defined.
+- Implemented: member avatar upload, replacement, removal and controlled delivery. Source images reuse the hardened decoder, become metadata-free 512 px square WebP revisions, and old revisions remain available to the backup window before orphan reconciliation.
 
 ## MVP loop
 

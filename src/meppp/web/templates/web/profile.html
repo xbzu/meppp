@@ -4,7 +4,7 @@
   <div class="reading-column profile-page">
     <a class="back-link" href="{% url 'web:home' %}"><span aria-hidden="true">←</span> 返回动态</a>
     <section class="profile-summary">
-      <div class="profile-avatar" aria-hidden="true">{{ member.profile.display_name|default:member.username|first|upper }}</div>
+      <div class="profile-avatar" aria-hidden="true">{% include 'web/_avatar_content.html' with member=member only %}</div>
       <div class="profile-copy">
         <p class="eyebrow">MEMBER RECORD</p>
         <h1>{{ member.profile.display_name|default:member.username }}</h1>

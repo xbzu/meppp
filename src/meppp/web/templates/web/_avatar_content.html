@@ -1,0 +1,12 @@
+{% if member.profile.avatar and member.profile.avatar_version %}
+  <img
+    class="avatar-image"
+    src="{% url 'web:avatar-file' member.public_id %}"
+    alt=""
+    loading="lazy"
+    decoding="async"
+    width="{{ member.profile.avatar_width }}"
+    height="{{ member.profile.avatar_height }}">
+{% else %}
+  <span class="avatar-initial">{{ member.profile.display_name|default:member.username|first|upper }}</span>
+{% endif %}

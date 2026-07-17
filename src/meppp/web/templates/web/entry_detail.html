@@ -33,7 +33,7 @@
           {% for comment in comments %}
             <article class="comment-item">
               <header class="identity-line">
-                <a class="avatar avatar-small" href="{% url 'web:member-profile' comment.author.public_id %}" aria-hidden="true" tabindex="-1">{{ comment.author.profile.display_name|default:comment.author.username|first|upper }}</a>
+                <a class="avatar avatar-small" href="{% url 'web:member-profile' comment.author.public_id %}" aria-hidden="true" tabindex="-1">{% include 'web/_avatar_content.html' with member=comment.author only %}</a>
                 <div><a class="identity-name" href="{% url 'web:member-profile' comment.author.public_id %}">{{ comment.author.profile.display_name|default:comment.author.username }}</a><span class="identity-handle">@{{ comment.author.username }}</span></div>
                 <time class="entry-time" datetime="{{ comment.created_at|date:'c' }}">{{ comment.created_at|timesince }}前</time>
               </header>

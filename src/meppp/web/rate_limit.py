@@ -20,6 +20,7 @@ RATE_LIMITS = {
     "register": RateLimit(5, 3600),
     "recover": RateLimit(5, 3600),
     "account_security": RateLimit(5, 900),
+    "avatar_process": RateLimit(5, 3600),
     "publish": RateLimit(10, 300),
     "video_process": RateLimit(5, 3600),
     "comment": RateLimit(20, 300),

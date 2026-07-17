@@ -54,7 +54,7 @@
   <div class="sidebar-account">
     {% if request.user.is_authenticated %}
       <a class="sidebar-user" href="{% url 'web:member-dashboard' %}">
-        <span class="avatar avatar-small" aria-hidden="true">{{ request.user.profile.display_name|default:request.user.username|first|upper }}</span>
+        <span class="avatar avatar-small" aria-hidden="true">{% include 'web/_avatar_content.html' with member=request.user only %}</span>
         <span><strong>{{ request.user.profile.display_name|default:request.user.username }}</strong><small>@{{ request.user.username }}</small></span>
       </a>
       <form method="post" action="{% url 'web:logout' %}">

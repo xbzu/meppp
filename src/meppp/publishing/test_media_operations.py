@@ -14,6 +14,7 @@ from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from PIL import Image
 
+from meppp.accounts.member_services import process_member_avatar, update_member_profile
 from meppp.accounts.models import User
 from meppp.configuration.models import SiteConfiguration
 from meppp.web.services import publish_entry_once
@@ -68,7 +69,7 @@ class MediaOperationTests(TestCase):
         )
         self.attachment = self.entry.attachments.get()
 
-    def create_snapshot_database(self, *, video_asset=None) -> Path:
+    def create_snapshot_database(self, *, video_asset=None, avatar_profile=None) -> Path:
         database_path = Path(self.media_directory.name, "snapshot.sqlite3")
         with sqlite3.connect(database_path) as database:
             database.execute(
@@ -116,6 +117,26 @@ class MediaOperationTests(TestCase):
                         video_asset.poster_byte_size,
                         video_asset.width,
                         video_asset.height,
+                    ),
+                )
+            if avatar_profile is not None:
+                database.execute(
+                    "CREATE TABLE accounts_profile "
+                    "(id integer primary key, public_id text, avatar text, "
+                    "avatar_version text, avatar_byte_size integer, "
+                    "avatar_width integer, avatar_height integer)"
+                )
+                database.execute(
+                    "INSERT INTO accounts_profile "
+                    "(public_id, avatar, avatar_version, avatar_byte_size, "
+                    "avatar_width, avatar_height) VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        str(avatar_profile.public_id),
+                        avatar_profile.avatar.name,
+                        str(avatar_profile.avatar_version),
+                        avatar_profile.avatar_byte_size,
+                        avatar_profile.avatar_width,
+                        avatar_profile.avatar_height,
                     ),
                 )
         return database_path
@@ -167,6 +188,52 @@ class MediaOperationTests(TestCase):
 
         self.assertTrue(recent.exists())
 
+    def test_verify_and_reconcile_include_profile_avatar_revisions(self):
+        avatar = process_member_avatar(
+            upload=SimpleUploadedFile(
+                "avatar.png",
+                make_processed_image().content,
+                content_type="image/webp",
+            )
+        )
+        profile = update_member_profile(
+            member=self.author,
+            display_name="Author",
+            bio="",
+            avatar=avatar,
+        )
+        database_path = self.create_snapshot_database(avatar_profile=profile)
+        output = StringIO()
+
+        call_command(
+            "verify_media",
+            database=str(database_path),
+            media_root=self.media_directory.name,
+            stdout=output,
+        )
+        self.assertIn("avatars=1", output.getvalue())
+
+        orphan = Path(
+            self.media_directory.name,
+            f"avatars/{profile.public_id}/00000000-0000-0000-0000-000000000001.webp",
+        )
+        orphan.parent.mkdir(parents=True, exist_ok=True)
+        orphan.write_bytes(Path(profile.avatar.path).read_bytes())
+        old_time = time.time() - 72 * 3600
+        os.utime(orphan, (old_time, old_time))
+        call_command("reconcile_media", delete=True, stdout=StringIO())
+        self.assertFalse(orphan.exists())
+        self.assertTrue(Path(profile.avatar.path).exists())
+
+        with open(profile.avatar.path, "ab") as media_file:
+            media_file.write(b"tampered")
+        with self.assertRaisesMessage(CommandError, "avatar file size"):
+            call_command(
+                "verify_media",
+                database=str(database_path),
+                media_root=self.media_directory.name,
+            )
+
     def test_verify_media_accepts_canonical_video_and_poster_and_rejects_drift(self):
         entry = publish_entry(
             author=self.author,
@@ -195,7 +262,10 @@ class MediaOperationTests(TestCase):
                 media_root=self.media_directory.name,
                 stdout=output,
             )
-        self.assertIn("media_verification=passed attachments=1 videos=1", output.getvalue())
+        self.assertIn(
+            "media_verification=passed attachments=1 avatars=0 videos=1",
+            output.getvalue(),
+        )
 
         with open(asset.file.path, "ab") as media_file:
             media_file.write(b"tampered")

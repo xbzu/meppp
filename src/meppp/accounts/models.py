@@ -75,15 +75,49 @@ class Profile(PublicModel):
     display_name = models.CharField(max_length=80, blank=True)
     bio = models.TextField(blank=True, validators=[MaxLengthValidator(500)])
     avatar = models.FileField(
-        upload_to="avatars/%Y/%m/",
+        upload_to="avatars/",
         blank=True,
-        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"])],
+        validators=[FileExtensionValidator(["webp"])],
     )
+    avatar_version = models.UUIDField(null=True, blank=True, editable=False)
+    avatar_byte_size = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    avatar_width = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    avatar_height = models.PositiveIntegerField(null=True, blank=True, editable=False)
 
     class Meta:
         ordering = ["user_id"]
         verbose_name = "成员资料"
         verbose_name_plural = "成员资料"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        avatar="",
+                        avatar_version__isnull=True,
+                        avatar_byte_size__isnull=True,
+                        avatar_width__isnull=True,
+                        avatar_height__isnull=True,
+                    )
+                    | (
+                        ~models.Q(avatar="")
+                        & models.Q(
+                            avatar_version__isnull=False,
+                            avatar_byte_size__isnull=False,
+                            avatar_byte_size__gt=0,
+                            avatar_width__isnull=False,
+                            avatar_width__gt=0,
+                            avatar_height__isnull=False,
+                            avatar_height__gt=0,
+                        )
+                    )
+                ),
+                name="accounts_profile_avatar_metadata_match",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(avatar="") | models.Q(avatar__endswith=".webp"),
+                name="accounts_profile_avatar_webp",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.display_name or self.user.get_username()

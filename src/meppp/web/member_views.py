@@ -15,9 +15,10 @@ from django.urls import reverse_lazy
 from django.views.decorators.http import require_http_methods, require_POST
 
 from meppp.accounts.member_forms import ProfileSettingsForm, StyledPasswordChangeForm
-from meppp.accounts.member_services import update_member_profile
+from meppp.accounts.member_services import process_member_avatar, update_member_profile
 from meppp.accounts.models import Profile
 from meppp.audit.services import record_event
+from meppp.configuration.selectors import get_site_configuration
 from meppp.publishing.member_services import withdraw_comment, withdraw_entry
 from meppp.publishing.models import Comment, ContentState, Entry
 
@@ -68,18 +69,41 @@ def dashboard(request):
 @require_http_methods(["GET", "POST"])
 def settings(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
+    configuration = get_site_configuration()
     if request.method == "POST":
-        form = ProfileSettingsForm(request.POST, instance=profile)
+        form = ProfileSettingsForm(
+            request.POST,
+            request.FILES,
+            instance=profile,
+            configuration=configuration,
+        )
         if form.is_valid():
-            update_member_profile(
-                member=request.user,
-                display_name=form.cleaned_data["display_name"],
-                bio=form.cleaned_data["bio"],
-            )
-            messages.success(request, "公开资料已更新。")
-            return redirect("web:member-settings")
+            avatar = None
+            avatar_upload = form.cleaned_data.get("avatar_upload")
+            try:
+                if avatar_upload is not None:
+                    enforce_rate_limit(
+                        request,
+                        scope="avatar_process",
+                        identity=str(request.user.public_id),
+                    )
+                    avatar = process_member_avatar(upload=avatar_upload)
+                update_member_profile(
+                    member=request.user,
+                    display_name=form.cleaned_data["display_name"],
+                    bio=form.cleaned_data["bio"],
+                    avatar=avatar,
+                    remove_avatar=form.cleaned_data.get("remove_avatar", False),
+                )
+            except RateLimitExceeded as error:
+                return _rate_limited(request, error)
+            except ValidationError as error:
+                form.add_error("avatar_upload" if avatar_upload is not None else None, error)
+            else:
+                messages.success(request, "公开资料已更新。")
+                return redirect("web:member-settings")
     else:
-        form = ProfileSettingsForm(instance=profile)
+        form = ProfileSettingsForm(instance=profile, configuration=configuration)
     return render(request, "web/member_settings.html", {"form": form})
 
 

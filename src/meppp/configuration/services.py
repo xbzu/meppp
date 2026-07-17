@@ -20,6 +20,7 @@ EDITABLE_FIELDS = frozenset(
         "upload_max_bytes",
         "moderation_mode",
         "comments_enabled",
+        "avatar_uploads_enabled",
         "video_uploads_enabled",
         "x_references_enabled",
         "youtube_references_enabled",

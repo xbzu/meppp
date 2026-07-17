@@ -188,6 +188,27 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(self.failed_requests, [])
         self.assertEqual(self.bad_responses, [])
 
+    def assert_brand_copy_left_aligned(self, brand):
+        alignment = brand.locator(".brand-lockup-copy").evaluate(
+            """
+            element => {
+              const name = element.querySelector(".brand-name").getBoundingClientRect();
+              const tagline = element.querySelector(".brand-tagline").getBoundingClientRect();
+              return {
+                justifyItems: getComputedStyle(element).justifyItems,
+                nameLeft: name.left,
+                taglineLeft: tagline.left,
+              };
+            }
+            """
+        )
+        self.assertEqual(alignment["justifyItems"], "start")
+        self.assertAlmostEqual(
+            alignment["nameLeft"],
+            alignment["taglineLeft"],
+            delta=0.5,
+        )
+
     def test_desktop_public_feed_search_and_profile(self):
         self.open("/")
 
@@ -199,8 +220,9 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         expect(sidebar_brand.locator(".sidebar-brand-mark")).to_be_visible()
         expect(sidebar_brand.locator(".brand-name")).to_be_visible()
         expect(sidebar_brand.locator(".brand-name")).to_have_text("冒泡")
-        expect(sidebar_brand.locator(".brand-product")).to_be_visible()
-        expect(sidebar_brand.locator(".brand-product")).to_have_text("meppp")
+        expect(sidebar_brand.locator(".brand-tagline")).to_be_visible()
+        expect(sidebar_brand.locator(".brand-tagline")).to_have_text("来冒个泡")
+        self.assert_brand_copy_left_aligned(sidebar_brand)
         expect(self.page.get_by_text("小社区不需要追赶每一种功能")).to_be_visible()
         expect(self.page.get_by_role("link", name="免费注册")).to_be_visible()
         expect(self.page.get_by_text("免费注册后可发文字", exact=False)).to_be_visible()
@@ -222,7 +244,9 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
 
         auth_brand = self.page.locator(".auth-brand")
         expect(auth_brand.locator(".brand-name")).to_have_text("冒泡")
-        expect(auth_brand.locator(".brand-product")).to_have_text("meppp")
+        expect(auth_brand.locator(".brand-tagline")).to_be_visible()
+        expect(auth_brand.locator(".brand-tagline")).to_have_text("来冒个泡")
+        self.assert_brand_copy_left_aligned(auth_brand)
         brand_mark = auth_brand.locator(".brand-mark")
         expect(brand_mark).to_be_visible()
         self.assertEqual(
@@ -249,6 +273,15 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
             "href", "/static/web/img/favicon-32.png"
         )
         self.page.screenshot(path=RESULTS_DIR / "brand-login-mobile.png", full_page=True)
+        self.assert_browser_clean()
+
+        self.open("/join/")
+        register_brand = self.page.locator(".auth-brand")
+        expect(register_brand.locator(".brand-name")).to_have_text("冒泡")
+        expect(register_brand.locator(".brand-tagline")).to_be_visible()
+        expect(register_brand.locator(".brand-tagline")).to_have_text("来冒个泡")
+        self.assert_brand_copy_left_aligned(register_brand)
+        self.page.screenshot(path=RESULTS_DIR / "brand-register-mobile.png", full_page=True)
         self.assert_browser_clean()
 
     def test_closed_registration_stays_discoverable_and_explains_status(self):
@@ -290,8 +323,9 @@ class PublicUiBrowserTests(StaticLiveServerTestCase):
         drawer_brand = self.page.locator(".mobile-drawer .sidebar-brand")
         expect(drawer_brand.locator(".brand-name")).to_be_visible()
         expect(drawer_brand.locator(".brand-name")).to_have_text("冒泡")
-        expect(drawer_brand.locator(".brand-product")).to_be_visible()
-        expect(drawer_brand.locator(".brand-product")).to_have_text("meppp")
+        expect(drawer_brand.locator(".brand-tagline")).to_be_visible()
+        expect(drawer_brand.locator(".brand-tagline")).to_have_text("来冒个泡")
+        self.assert_brand_copy_left_aligned(drawer_brand)
         self.page.screenshot(path=RESULTS_DIR / "public-home-tablet.png", full_page=True)
 
         for width in (960, 1100):

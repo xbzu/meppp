@@ -183,8 +183,10 @@ strong {
 .brand-lockup-copy {
   display: grid;
   gap: 2px;
+  justify-items: start;
   min-width: 0;
   line-height: 1;
+  text-align: left;
 }
 
 .brand-name {
@@ -193,11 +195,13 @@ strong {
   letter-spacing: 0.02em;
 }
 
-.brand-product {
+.brand-tagline {
   color: var(--muted);
   font-size: 10px;
   font-weight: 650;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .inner-nav {

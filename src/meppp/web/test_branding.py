@@ -131,7 +131,7 @@ class BrandPageTests(TestCase):
         )
         self.assertContains(
             response,
-            '<span class="brand-product" aria-hidden="true">meppp</span>',
+            '<span class="brand-tagline" aria-hidden="true">来冒个泡</span>',
             count=2,
         )
 
@@ -148,7 +148,7 @@ class BrandPageTests(TestCase):
         )
         self.assertContains(
             home_response,
-            '<span class="brand-product" aria-hidden="true">meppp</span>',
+            '<span class="brand-tagline" aria-hidden="true">来冒个泡</span>',
             count=3,
         )
 

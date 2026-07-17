@@ -6,7 +6,7 @@
   <div class="auth-layout paopao-auth-layout">
     <section class="auth-card recovery-code-card" aria-labelledby="recovery-code-title">
       <a class="auth-brand" href="{% url 'web:home' %}" aria-label="返回 {{ site_config.site_name }} 广场">
-        <img class="brand-mark" src="{% static 'web/img/mark.svg' %}" alt="" width="36" height="36"><strong>{{ site_config.site_name }}</strong>
+        {% include 'web/_brand_lockup.html' %}
       </a>
       <h1 id="recovery-code-title">现在保存账号恢复码</h1>
       <p class="auth-intro">它只在这里显示。忘记密码时，需要用户名、注册邮箱和这段恢复码。</p>

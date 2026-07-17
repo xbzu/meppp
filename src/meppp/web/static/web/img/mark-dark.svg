@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">冒泡 meppp（深色背景变体）</title>
+  <desc id="description">亮蓝色气泡中的三个深色圆点，用于深色界面</desc>
+  <path d="M64 10c31 0 54 20.5 54 47 0 26.5-23 46-54 46H45L23 118l7.5-22.5C17.5 86 10 72.5 10 57 10 30.5 33 10 64 10z" fill="#38bdf8"/>
+  <circle cx="42" cy="57" r="8" fill="#16181c"/>
+  <circle cx="64" cy="57" r="8" fill="#16181c"/>
+  <circle cx="86" cy="57" r="8" fill="#16181c"/>
+</svg>

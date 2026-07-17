@@ -105,7 +105,7 @@ wheels = [
 
 [[package]]
 name = "meppp"
-version = "0.1.0rc10"
+version = "0.1.0rc11"
 source = { editable = "." }
 dependencies = [
     { name = "django" },

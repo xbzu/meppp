@@ -171,10 +171,33 @@ strong {
 .brand-mark,
 .sidebar-brand-mark {
   display: block;
-  width: 34px;
-  height: 34px;
   object-fit: contain;
-  border-radius: 50%;
+}
+
+.brand-mark {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+}
+
+.brand-lockup-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1;
+}
+
+.brand-name {
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.brand-product {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
 }
 
 .inner-nav {
@@ -812,7 +835,6 @@ strong {
   width: 52px;
   height: 52px;
   object-fit: contain;
-  border-radius: 50%;
 }
 
 .empty-state h2,

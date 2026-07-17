@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="冒泡 meppp 分享卡片">
+  <rect width="1200" height="630" fill="#0284c7"/>
+  <g transform="translate(140,195) scale(1.875)">
+    <path d="M64 10c31 0 54 20.5 54 47 0 26.5-23 46-54 46H45L23 118l7.5-22.5C17.5 86 10 72.5 10 57 10 30.5 33 10 64 10z" fill="#ffffff"/>
+    <circle cx="42" cy="57" r="8" fill="#0284c7"/>
+    <circle cx="64" cy="57" r="8" fill="#0284c7"/>
+    <circle cx="86" cy="57" r="8" fill="#0284c7"/>
+  </g>
+  <text x="440" y="300" fill="#ffffff" font-family="Noto Sans SC, PingFang SC, sans-serif" font-size="110" font-weight="700">冒泡</text>
+  <text x="700" y="300" fill="#bae6fd" font-family="Noto Sans SC, sans-serif" font-size="56" font-weight="400">meppp</text>
+  <text x="440" y="386" fill="#e0f2fe" font-family="Noto Sans SC, PingFang SC, sans-serif" font-size="40">来冒个泡 · 分享新鲜事，遇见同路人</text>
+</svg>

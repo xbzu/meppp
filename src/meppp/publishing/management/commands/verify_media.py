@@ -24,10 +24,7 @@ def _table_exists(database: sqlite3.Connection, table_name: str) -> bool:
 
 
 def _column_names(database: sqlite3.Connection, table_name: str) -> set[str]:
-    return {
-        row[1]
-        for row in database.execute(f'PRAGMA table_info("{table_name}")').fetchall()
-    }
+    return {row[1] for row in database.execute(f'PRAGMA table_info("{table_name}")').fetchall()}
 
 
 def _canonical_uuid(value) -> str:
@@ -116,9 +113,7 @@ class Command(BaseCommand):
                             "SELECT 1 FROM accounts_profile WHERE avatar != '' LIMIT 1"
                         ).fetchone()
                         if legacy_avatar is not None:
-                            raise CommandError(
-                                "legacy avatar exists without canonical metadata"
-                            )
+                            raise CommandError("legacy avatar exists without canonical metadata")
         except sqlite3.Error as error:
             raise CommandError("media records could not be read") from error
 

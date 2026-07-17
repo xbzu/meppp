@@ -140,10 +140,13 @@ class AvatarUploadTests(TestCase):
         original_files = set(Path(self.media_directory.name, "avatars").rglob("*.webp"))
         processed = process_member_avatar(upload=avatar_upload(color="purple"))
 
-        with patch(
-            "meppp.accounts.member_services.record_event",
-            side_effect=RuntimeError("audit unavailable"),
-        ), self.assertRaisesMessage(RuntimeError, "audit unavailable"):
+        with (
+            patch(
+                "meppp.accounts.member_services.record_event",
+                side_effect=RuntimeError("audit unavailable"),
+            ),
+            self.assertRaisesMessage(RuntimeError, "audit unavailable"),
+        ):
             update_member_profile(
                 member=self.member,
                 display_name=profile.display_name,

@@ -515,9 +515,7 @@ def avatar_file(request, public_id):
         avatar_width__isnull=False,
         avatar_height__isnull=False,
     )
-    expected_name = (
-        f"avatars/{profile.public_id}/{profile.avatar_version}.webp"
-    )
+    expected_name = f"avatars/{profile.public_id}/{profile.avatar_version}.webp"
     if profile.avatar.name != expected_name:
         raise Http404
 

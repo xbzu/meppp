@@ -106,10 +106,7 @@ def _media_bytes(*, author=None, created_on=None) -> int:
         or 0
     )
     return (
-        image_bytes
-        + (video_totals["video"] or 0)
-        + (video_totals["posters"] or 0)
-        + avatar_bytes
+        image_bytes + (video_totals["video"] or 0) + (video_totals["posters"] or 0) + avatar_bytes
     )
 
 

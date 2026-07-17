@@ -30,9 +30,7 @@ class Command(BaseCommand):
         referenced = set(Attachment.objects.values_list("file", flat=True))
         referenced.update(VideoAsset.objects.values_list("file", flat=True))
         referenced.update(VideoAsset.objects.values_list("poster", flat=True))
-        referenced.update(
-            Profile.objects.exclude(avatar="").values_list("avatar", flat=True)
-        )
+        referenced.update(Profile.objects.exclude(avatar="").values_list("avatar", flat=True))
         cutoff = time.time() - minimum_age_hours * 3600
         candidates: list[tuple[Path, str]] = []
 

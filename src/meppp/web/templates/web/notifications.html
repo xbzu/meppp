@@ -16,7 +16,7 @@
                 {% if notification.kind == 'moderation' %}
                   <strong>系统</strong>
                   {% if notification.payload.content_type == 'comment' %}你的评论{% else %}你的内容{% endif %}
-                  {% if notification.payload.outcome == 'approve' %}已通过审核{% elif notification.payload.outcome == 'reject' %}未通过审核{% else %}审核结果已更新{% endif %}
+                  {% if notification.payload.outcome == 'approve' %}已通过审核{% elif notification.payload.outcome == 'reject' %}未通过审核{% elif notification.payload.outcome == 'hidden' %}已因举报处置被隐藏{% elif notification.payload.outcome == 'restored' %}已恢复显示{% else %}审核结果已更新{% endif %}
                 {% else %}
                   {% if notification.actor %}<strong>@{{ notification.actor.username }}</strong>{% else %}<strong>系统</strong>{% endif %}
                   {% if notification.kind == 'follow' %}关注了你

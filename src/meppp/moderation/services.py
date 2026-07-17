@@ -6,6 +6,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from meppp.audit.services import record_event
+from meppp.notifications.services import NotificationKind, notify
 from meppp.publishing.models import Comment, ContentState, Entry
 
 from .models import (
@@ -28,6 +29,13 @@ ACTION_SUBJECTS = {
     ModerationAction.RESTORE_COMMENT: SubjectType.COMMENT,
     ModerationAction.SUSPEND_USER: SubjectType.USER,
     ModerationAction.RESTORE_USER: SubjectType.USER,
+}
+
+CONTENT_ACTION_OUTCOMES = {
+    ModerationAction.HIDE_ENTRY: "hidden",
+    ModerationAction.RESTORE_ENTRY: "restored",
+    ModerationAction.HIDE_COMMENT: "hidden",
+    ModerationAction.RESTORE_COMMENT: "restored",
 }
 
 
@@ -250,6 +258,24 @@ def _apply_action(*, report: Report, actor, action: str) -> dict:
     return {"changed": True, "already_applied": False, "before": before, "after": after}
 
 
+def _notify_content_author(*, report: Report, action: str, outcome: dict) -> None:
+    notification_outcome = CONTENT_ACTION_OUTCOMES.get(action)
+    if notification_outcome is None or not outcome.get("changed"):
+        return
+    model = Entry if report.subject_type == SubjectType.ENTRY else Comment
+    target = model.objects.select_related("author").get(public_id=report.subject_public_id)
+    notify(
+        recipient=target.author,
+        actor=None,
+        kind=NotificationKind.MODERATION,
+        payload={
+            "content_type": report.subject_type,
+            "content_public_id": str(target.public_id),
+            "outcome": notification_outcome,
+        },
+    )
+
+
 @transaction.atomic
 def close_report(*, report: Report, actor, status: str, action: str, reason: str) -> Report:
     actor = _canonical_moderator(actor)
@@ -316,6 +342,11 @@ def close_report(*, report: Report, actor, status: str, action: str, reason: str
             "target": str(current_report.subject_public_id),
             "outcome": outcome,
         },
+    )
+    _notify_content_author(
+        report=current_report,
+        action=action,
+        outcome=outcome,
     )
     current_report.refresh_from_db()
     return current_report

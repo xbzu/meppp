@@ -1,8 +1,15 @@
 # Production operations
 
-MEPPP runs as one non-root application container behind an existing host Nginx. The production shape intentionally stays small: one Gunicorn process, two threads, one local `/data` mount, and no Redis, queue, search, or database service. `deploy/README.md` contains the aaPanel/Nginx/Cloudflare packet.
+MEPPP runs as one non-root application container behind an existing host Nginx. The production shape intentionally stays small: one Gunicorn worker with two threads, one local `/data` mount, and no Redis, queue, search, or database service. `deploy/README.md` contains the aaPanel/Nginx/Cloudflare packet.
 
 This repository does not change a server, DNS record, Cloudflare zone, or aaPanel configuration by itself.
+
+## Repository release gate
+
+The release policy requires `main` changes to arrive through pull requests. GitHub branch protection must require
+the `quality`, `browser`, and `container` checks against the latest `main`, including for
+administrators. Create annotated release tags only from the protected `main` commit after
+all three checks pass; never tag an unreviewed branch or a locally patched server tree.
 
 ## Runtime safety boundary
 
@@ -38,8 +45,10 @@ Before first start:
 Start and inspect:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --pull --tag meppp:v0.1.0-rc.8 .
-docker image inspect meppp:v0.1.0-rc.8 >/dev/null
+RELEASE_TAG=v0.1.0-rc.9
+test -z "$(docker image ls --quiet meppp:${RELEASE_TAG})"
+DOCKER_BUILDKIT=1 docker build --pull --tag "meppp:${RELEASE_TAG}" .
+docker image inspect "meppp:${RELEASE_TAG}" >/dev/null
 docker compose up --detach --no-build --wait app
 docker compose ps
 docker compose logs --tail=100 app

@@ -104,6 +104,10 @@ class RegistrationForm(FormStyleMixin, UserCreationForm):
         self.fields["email"].widget.attrs["autocomplete"] = "email"
         self.fields["password1"].label = "密码"
         self.fields["password2"].label = "确认密码"
+        self.fields[
+            "password1"
+        ].help_text = "至少 8 个字符；不能与用户名或邮箱过于相似，也不能使用常见密码或纯数字。"
+        self.fields["password2"].help_text = "请再次输入同一密码。"
         self.fields["password1"].widget.attrs["autocomplete"] = "new-password"
         self.fields["password2"].widget.attrs["autocomplete"] = "new-password"
         self.order_fields(

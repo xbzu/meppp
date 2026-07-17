@@ -2149,9 +2149,13 @@ textarea.field-control {
   }
 }
 
-@media (max-width: 821px) {
+@media (max-width: 959px) {
   body {
     padding-bottom: 0;
+  }
+
+  body:not(.home-page) .message-stack {
+    top: 66px;
   }
 
   .inner-header-content {
@@ -2345,6 +2349,12 @@ textarea.field-control {
     backdrop-filter: blur(10px);
   }
 
+  .composer-page .field-control,
+  .composer-page button,
+  .composer-page a {
+    scroll-margin-bottom: 88px;
+  }
+
   .composer-shortcuts {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2443,6 +2453,10 @@ textarea.field-control {
 
   .auth-page .inner-header {
     display: none;
+  }
+
+  body.auth-page .message-stack {
+    top: 14px;
   }
 
   .paopao-auth-layout {
